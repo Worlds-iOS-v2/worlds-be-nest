@@ -286,6 +286,8 @@ export class AuthService {
             await this.userService.updateRefreshToken(user.id, newRefreshToken);
 
             return {
+                statusCode: 200,
+                message: '액세스 토큰 재발급 성공',
                 access_token: newAccessToken,
                 refresh_token: newRefreshToken,
             };
@@ -316,8 +318,23 @@ export class AuthService {
         console.log('로그아웃 후 refresh token:', userAfter?.refreshToken);
         
         return {
+            statusCode: 200,
             message: '로그아웃 성공',
-            status: 200,
+        }
+    }
+
+    // 사용자 정보 조회
+    async getUserInfo(userId: number) {
+        const user = await this.userService.findUserById(userId);
+
+        if (!user) {
+            throw new UnauthorizedException('사용자를 찾을 수 없습니다.');
+        }
+
+        return {
+            statusCode: 200,
+            message: '사용자 정보 조회 성공',
+            userInfo: user,
         }
     }
 
