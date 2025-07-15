@@ -43,7 +43,7 @@ export class UserService {
     }
 
     // 유저 정보 가져오기
-    async findUserForUpdate(userId: number) {
+    async findUserById(userId: number) {
         return await this.prisma.users.findUnique({
             where: {
                 id: userId,

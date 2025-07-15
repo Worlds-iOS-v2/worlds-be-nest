@@ -25,7 +25,7 @@ export class AuthService {
 
         // 비밀번호 해싱
         const salt = parseInt(this.config.get('SALT_ROUNDS') || '10');
-        const hashedPassword = await bcrypt.hash(signupform.passwordHash, salt);
+        const hashedPassword = await bcrypt.hash(signupform.password, salt);
 
         const user = await this.prisma.users.create({
             data: {
@@ -35,14 +35,13 @@ export class AuthService {
                 passwordHash: hashedPassword,
                 isMentor: signupform.isMentor,
                 mentorCode: signupform.mentorCode,
-                reportCount: signupform.reportedCount || 0,
                 refreshToken: '',
             },
         });
 
         console.log('회원가입 완료');
         return {
-            status: 201,
+            statusCode: 200,
             message: '회원가입 성공',
         };
     }
@@ -58,8 +57,8 @@ export class AuthService {
         }
 
         return {
-            message: '사용 가능한 이메일입니다.',
-            status: 200
+            statusCode: 200,
+            message: '사용 가능한 이메일입니다.'
         }
     }
     
@@ -90,10 +89,10 @@ export class AuthService {
         await this.userService.updateRefreshToken(user.id, refreshToken);
 
         return {
+            statusCode: 200,
+            message: '로그인 성공',
             access_token: accessToken,
             refresh_token: refreshToken,
-            status: 200,
-            message: '로그인 성공',
         }
     }
 
@@ -142,6 +141,8 @@ export class AuthService {
             await this.userService.updateRefreshToken(user.id, newRefreshToken);
 
             return {
+                statusCode: 200,
+                message: '액세스 토큰 재발급 성공',
                 access_token: newAccessToken,
                 refresh_token: newRefreshToken,
             };
@@ -172,8 +173,23 @@ export class AuthService {
         console.log('로그아웃 후 refresh token:', userAfter?.refreshToken);
         
         return {
+            statusCode: 200,
             message: '로그아웃 성공',
-            status: 200,
+        }
+    }
+
+    // 사용자 정보 조회
+    async getUserInfo(userId: number) {
+        const user = await this.userService.findUserById(userId);
+
+        if (!user) {
+            throw new UnauthorizedException('사용자를 찾을 수 없습니다.');
+        }
+
+        return {
+            statusCode: 200,
+            message: '사용자 정보 조회 성공',
+            userInfo: user,
         }
     }
 
