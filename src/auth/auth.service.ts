@@ -241,6 +241,86 @@ export class AuthService {
         }
     }
 
+    // 리프레시 토큰 검증 + 재발급
+    async validateRefreshToken(token: string) {
+        try {
+            // 1. JWT 검증
+            const decoded = this.jwtService.verify(token, {
+                secret: this.config.get('JWT_SECRET'),
+            })
+            const user = await this.userService.findUserForTokenRefresh(decoded.sub);
+
+            // 2. 토큰 타입 검증
+            if (decoded.type !== 'refresh') {
+                throw new UnauthorizedException('Refresh token이 아닙니다.');
+            }
+
+            // 3. 사용자 존재 및 토큰 검증
+            if (!user || !user.refreshToken || user.refreshToken === '') {
+                throw new UnauthorizedException('사용자 또는 토큰을 찾을 수 없습니다.');
+            }
+
+            if (token !== user.refreshToken) {
+                throw new UnauthorizedException('유효하지 않는 토큰입니다.');
+            }
+
+            const accessPayload = {
+                sub: user.id,
+                username: user.userName,
+                type: 'access',
+            }
+
+            const refreshPayload = {
+                sub: user.id,
+                type: 'refresh',
+            }
+
+            const newAccessToken = this.jwtService.sign(accessPayload, {
+                expiresIn: '1h',
+            });
+
+            const newRefreshToken = this.jwtService.sign(refreshPayload, {
+                expiresIn: '30d',
+            });
+
+            await this.userService.updateRefreshToken(user.id, newRefreshToken);
+
+            return {
+                access_token: newAccessToken,
+                refresh_token: newRefreshToken,
+            };
+        } catch (error) {
+            this.logger.error('Refresh token error:', {
+                errorName: error?.name,
+                errorMessage: error?.message,
+                errorStack: error?.stack,
+            });
+
+            throw new UnauthorizedException('토큰이 유효하지 않습니다.');
+        }
+    }
+
+    // 로그아웃
+    async logout(userId: number) {
+        console.log('로그아웃 시작 - userId:', userId);
+        
+        // 로그아웃 전 refresh token 확인
+        const userBefore = await this.userService.findUserForTokenRefresh(userId);
+        console.log('로그아웃 전 refresh token:', userBefore?.refreshToken);
+        
+        // refresh token 빈 문자열로 설정
+        await this.userService.updateRefreshToken(userId, '');
+        
+        // 로그아웃 후 refresh token 확인
+        const userAfter = await this.userService.findUserForTokenRefresh(userId);
+        console.log('로그아웃 후 refresh token:', userAfter?.refreshToken);
+        
+        return {
+            message: '로그아웃 성공',
+            status: 200,
+        }
+    }
+
     // 로그인 유저 검증
     async validateUser (
         userEmail: string,
