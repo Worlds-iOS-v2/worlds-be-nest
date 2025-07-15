@@ -35,6 +35,7 @@ export class AuthService {
                 passwordHash: hashedPassword,
                 isMentor: signupform.isMentor,
                 mentorCode: signupform.mentorCode,
+                targetLanguage: signupform.targetLanguage,
                 refreshToken: '',
             },
         });
@@ -125,26 +126,14 @@ export class AuthService {
                 type: 'access',
             }
 
-            const refreshPayload = {
-                sub: user.id,
-                type: 'refresh',
-            }
-
             const newAccessToken = this.jwtService.sign(accessPayload, {
                 expiresIn: '1h',
             });
-
-            const newRefreshToken = this.jwtService.sign(refreshPayload, {
-                expiresIn: '30d',
-            });
-
-            await this.userService.updateRefreshToken(user.id, newRefreshToken);
 
             return {
                 statusCode: 200,
                 message: '액세스 토큰 재발급 성공',
                 access_token: newAccessToken,
-                refresh_token: newRefreshToken,
             };
         } catch (error) {
             this.logger.error('Refresh token error:', {

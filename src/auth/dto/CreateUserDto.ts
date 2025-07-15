@@ -69,4 +69,12 @@ export class CreateUserDto {
         required: false,
     })
     mentorCode?: string;
+
+    @IsString()
+    @IsNotEmpty()
+    @ApiProperty({
+        description: 'target language of the user : not null',
+        example: 'English',
+    })
+    targetLanguage: string;
 }
