@@ -23,6 +23,7 @@ model Users {
     mentorCode String? @unique
     reportCount Int @default(0)
     refreshToken String
+    targetLanguage String
     menteeTranslations Translations[]
     questions Question[]
     answers Answer[]
