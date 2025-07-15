@@ -4,8 +4,6 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
-import { CacheConfigModule as CacheModule } from './cache/cache.module';
-import { MailingModule } from './mailing/mailing.module';
 import { PrismaService } from './prisma/prisma.service';
 
 @Module({
@@ -14,9 +12,7 @@ import { PrismaService } from './prisma/prisma.service';
       isGlobal: true,
     }),
     UserModule, 
-    AuthModule, 
-    CacheModule, 
-    MailingModule
+    AuthModule
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],
