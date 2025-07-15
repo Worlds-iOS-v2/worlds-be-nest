@@ -24,11 +24,12 @@ model Users {
     reportCount Int @default(0)
     refreshToken String
     menteeTranslations Translations[]
+    questions Question[]
     answers Answer[]
     comments Comment[]
     reports Report[]
     answerLikes AnswerLike[]
-    commnetLikes CommentLike[]
+    commentLikes CommentLike[]
 }
 
 model Translations {
@@ -36,19 +37,46 @@ model Translations {
     menteeId Int
     mentee Users @relation(fields: [menteeId], references: [id])
     originalText String[]
-    translatedTest String[]
+    translatedText String[]
     targetLanguage String
     keyConcept String
     createdAt DateTime @default(now())
 }
 
+// 카테고리
+enum Category {
+  study
+  free
+}
+
 //질문
 model Question {
   id Int @id @default(autoincrement())
+  title   String
   content String
-  answer Answer[]
-  report Report[]
+  createdAt    DateTime    @default(now())
+  isDeleted    Boolean     @default(false)
+  isAnswered   Boolean     @default(false)
+  answerCount  Int         @default(0)
+  category     Category
+
+  userId       Int
+  user         Users        @relation(fields: [userId], references: [id])
+  
+  answer      Answer[]
+  reports      Report[]
+  attachments  Attachment[]
 }
+
+// 첨부파일
+model Attachment {
+  id          Int        @id @default(autoincrement())
+  url         String
+
+  questionId  Int
+  question    Question   @relation(fields: [questionId], references: [id])
+}
+
 
 // 답변
 model Answer {
@@ -93,8 +121,8 @@ model Report {
   question Question? @relation(fields: [questionId], references: [id])
   answerId Int?
   answer Answer? @relation(fields: [answerId], references: [id])
-  commnetId Int?
-  comment Comment? @relation(fields: [commnetId], references: [id])
+  commentId Int?
+  comment Comment? @relation(fields: [commentId], references: [id])
 }
 
 // 답변 좋아요

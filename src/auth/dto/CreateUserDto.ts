@@ -27,7 +27,7 @@ export class CreateUserDto {
           '비밀번호는 영문, 숫자, 특수문자 중 2가지 이상 조합으로 8~16자여야 합니다.',
       },
     )
-    passwordHash: string;
+    password: string;
 
     @IsString()
     @IsNotEmpty()
@@ -69,14 +69,4 @@ export class CreateUserDto {
         required: false,
     })
     mentorCode?: string;
-
-    @IsOptional()
-    @IsInt()
-    @Transform(({ value }) => value || 0)
-    @ApiProperty({
-        description: 'reported count : default 0',
-        example: 0,
-        required: false,
-    })
-    reportedCount?: number = 0;
 }
