@@ -3,8 +3,6 @@ import { AuthService } from './auth.service';
 import { CreateUserDto } from './dto/CreateUserDto';
 import { CheckEmailDto } from './dto/CheckEmailDto';
 import { SignInDto } from './dto/SignInDto';
-import { JwtAuthGuard } from './jwt-auth.guard';
-import { UpdateUserInfoDto } from './dto/UpdateUserInfoDto';
 import { UserService } from 'src/user/user.service';
 import { Request as ExpressRequest } from 'express';
 
@@ -32,36 +30,6 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async signIn(@Body() signinForm: SignInDto) {
     return this.authService.signIn(signinForm);
-  }
-
-  // refresh token endpoint
-  @Post('refresh')
-  @HttpCode(HttpStatus.OK)
-  async getNewRefreshToken(@Body('refreshToken') refreshToken: string) {
-    return this.authService.validateRefreshToken(refreshToken);
-  }
-
-  // logout endpoint
-  @Get('signout')
-  @UseGuards(JwtAuthGuard)
-  @HttpCode(HttpStatus.OK)
-  async logout(@Request() req: ExpressRequest) {
-    const userId = (req.user as any).sub;
-    return this.authService.logout(userId);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Get('userinfo')
-  async getProfile(@Request() req: ExpressRequest) {
-    const userId = (req.user as any).sub;
-    return this.userService.findUserForUpdate(userId);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Patch('update-userinfo')
-  async updateUserInfo(@Request() req: ExpressRequest, @Body() updateUserInfoDto: UpdateUserInfoDto) {
-    const userId = (req.user as any).sub;
-    return this.authService.updateUserInfo(userId, updateUserInfoDto);
   }
 
 }
