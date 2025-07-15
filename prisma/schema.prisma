@@ -6,10 +6,33 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+model Users {
+    id Int @id @default(autoincrement())
+    userName String
+    userEmail String @unique
+    birthday DateTime
+    passwordHash String
+    isMentor Boolean @default(false)
+    mentorCode String? @unique
+    reportCount Int @default(0)
+    refreshToken String
+    menteeTranslations Translations[]
+}
+
+model Translations {
+    id Int @id @default(autoincrement())
+    menteeId Int
+    mentee Users @relation(fields: [menteeId], references: [id])
+    originalText String[]
+    translatedTest String[]
+    targetLanguage String
+    keyConcept String
+    createdAt DateTime @default(now())
 }
