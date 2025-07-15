@@ -279,17 +279,10 @@ export class AuthService {
                 expiresIn: '1h',
             });
 
-            const newRefreshToken = this.jwtService.sign(refreshPayload, {
-                expiresIn: '30d',
-            });
-
-            await this.userService.updateRefreshToken(user.id, newRefreshToken);
-
             return {
                 statusCode: 200,
                 message: '액세스 토큰 재발급 성공',
                 access_token: newAccessToken,
-                refresh_token: newRefreshToken,
             };
         } catch (error) {
             this.logger.error('Refresh token error:', {
