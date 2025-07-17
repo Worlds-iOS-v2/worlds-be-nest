@@ -39,7 +39,7 @@ export class QuestionService {
         ...(category && { category }),
         },
         include: {
-        answers: true, 
+        comments: true, 
         },
         orderBy: {
         createdAt: 'desc',
@@ -47,10 +47,10 @@ export class QuestionService {
     });
 
     return questions.map((q) => ({
-        category: q.category,
+        category: q.category as Category,
         title: q.title,
         content: q.content,
-        answerCount: q.answers.length,
+        answerCount: q.comments.length,
     }));
     }
 
@@ -61,7 +61,7 @@ export class QuestionService {
       include: {
         user: true,
         attachments: true,
-        answers: true,
+        comments: true,
       },
     });
 
@@ -74,8 +74,8 @@ export class QuestionService {
       content: question.content,
       createdAt: question.createdAt,
       userName: question.user.userName,
-      answerCount: question.answers.length,
-      category: question.category,
+      answerCount: question.comments.length,
+      category: question.category as Category,
       attachments: question.attachments.map((a) => a.url),
     };
   }
