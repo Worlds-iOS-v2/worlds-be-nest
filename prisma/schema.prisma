@@ -6,6 +6,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  output   = "../generated/prisma"
 }
 
 datasource db {
@@ -45,6 +46,14 @@ model Translations {
 enum Category {
   study
   free
+}
+
+// 신고 사유 선택
+enum ReportReason {
+  offensive
+  sexual
+  ad
+  etc
 }
 
 //질문
