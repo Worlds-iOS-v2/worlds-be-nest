@@ -99,6 +99,63 @@ export class AuthService {
         }
     }
 
+    // 이메일 찾기
+    async findEmail(findemailform: FindEmailDto) {
+        const user = await this.prisma.users.findFirst({
+            where: {
+                userName: findemailform.userName,
+            },
+            select: {
+                userEmail: true,
+            }
+        })
+
+        if (!user) {
+            throw new UnauthorizedException('사용자를 찾을 수 없습니다.');
+        }
+
+        return {
+            userEmail: user.userEmail,
+            message: '이메일 찾기 성공',
+            statusCode: 200,
+        }
+    }
+
+    // 비밀번호 검증 및 변경
+    async updatePassword(userId: number, updatepasswordform: UpdatePasswordDto) {
+        const user = await this.userService.findUserForResetPassword(userId);
+        if (!user) {
+            throw new UnauthorizedException('사용자를 찾을 수 없습니다.');
+        }
+
+        const isMatch = await bcrypt.compare(updatepasswordform.org_password, user.passwordHash);
+        if (!isMatch) {
+            throw new UnauthorizedException('비밀번호가 일치하지 않습니다.');
+        }
+
+        const isExsists = await bcrypt.compare(updatepasswordform.new_password, user.passwordHash);
+        if (isExsists) {
+            throw new BadRequestException('기존에 사용하던 비밀번호와 동일합니다. 다른 비밀번호를 입력해주세요.');
+        }
+
+        const salt = parseInt(this.config.get('SALT_ROUNDS') || '10');
+        const hashedPassword = await bcrypt.hash(updatepasswordform.new_password, salt);
+
+        await this.prisma.users.update({
+            where: {
+                id: userId
+            },
+            data: {
+                passwordHash: hashedPassword,
+            }
+        })
+
+        return {
+            statusCode: 200,
+            message: '비밀번호 변경 성공',
+        }
+    }
+
     // 리프레시 토큰 검증 + 재발급
     async validateRefreshToken(token: string) {
         try {
@@ -126,6 +183,11 @@ export class AuthService {
                 sub: user.id,
                 username: user.userName,
                 type: 'access',
+            }
+
+            const refreshPayload = {
+                sub: user.id,
+                type: 'refresh',
             }
 
             const newAccessToken = this.jwtService.sign(accessPayload, {
@@ -181,63 +243,6 @@ export class AuthService {
             statusCode: 200,
             message: '사용자 정보 조회 성공',
             userInfo: user,
-        }
-    }
-
-    // 이메일 찾기
-    async findEmail(findemailform: FindEmailDto) {
-        const user = await this.prisma.users.findFirst({
-            where: {
-                userName: findemailform.userName,
-            },
-            select: {
-                userEmail: true,
-            }
-        })
-
-        if (!user) {
-            throw new UnauthorizedException('사용자를 찾을 수 없습니다.');
-        }
-
-        return {
-            userEmail: user.userEmail,
-            message: '이메일 찾기 성공',
-            statusCode: 200,
-        }
-    }
-
-    // 비밀번호 검증 및 변경
-    async updatePassword(userId: number, updatepasswordform: UpdatePasswordDto) {
-        const user = await this.userService.findUserForResetPassword(userId);
-        if (!user) {
-            throw new UnauthorizedException('사용자를 찾을 수 없습니다.');
-        }
-
-        const isMatch = await bcrypt.compare(updatepasswordform.org_password, user.passwordHash);
-        if (!isMatch) {
-            throw new UnauthorizedException('비밀번호가 일치하지 않습니다.');
-        }
-
-        const isExsists = await bcrypt.compare(updatepasswordform.new_password, user.passwordHash);
-        if (isExsists) {
-            throw new BadRequestException('기존에 사용하던 비밀번호와 동일합니다. 다른 비밀번호를 입력해주세요.');
-        }
-
-        const salt = parseInt(this.config.get('SALT_ROUNDS') || '10');
-        const hashedPassword = await bcrypt.hash(updatepasswordform.new_password, salt);
-
-        await this.prisma.users.update({
-            where: {
-                id: userId
-            },
-            data: {
-                passwordHash: hashedPassword,
-            }
-        })
-
-        return {
-            statusCode: 200,
-            message: '비밀번호 변경 성공',
         }
     }
 
