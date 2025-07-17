@@ -24,12 +24,11 @@ model Users {
     mentorCode String? @unique
     reportCount Int @default(0)
     refreshToken String
+    targetLanguage String
     menteeTranslations Translations[]
     questions Question[]
-    answers Answer[]
     comments Comment[]
     reports Report[]
-    answerLikes AnswerLike[]
     commentLikes CommentLike[]
 }
 
@@ -64,7 +63,7 @@ model Question {
   userId       Int
   user         Users        @relation(fields: [userId], references: [id])
   
-  answer      Answer[]
+  comments      Comment[]
   reports      Report[]
   attachments  Attachment[]
 }
@@ -80,7 +79,7 @@ model Attachment {
 
 
 // 답변
-model Answer {
+model Comment {
   id          Int      @id @default(autoincrement())
   content     String
   createdAt   DateTime @default(now())
@@ -89,26 +88,11 @@ model Answer {
   questionId  Int
   user        Users     @relation(fields: [userId], references: [id])
   userId      Int
-  comments Comment[]
+  parentId    Int?
+  parent      Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies     Comment[] @relation("CommentReplies")
   reports Report[]
-  likes AnswerLike[]
-}
-
-// 대댓글
-model Comment {
-  id          Int      @id @default(autoincrement())
-  content     String
-  createdAt   DateTime @default(now())
-  deleted Boolean @default(false)
-  user        Users     @relation(fields: [userId], references: [id])
-  userId      Int
-  answer Answer? @relation(fields: [answerId], references: [id])
-  answerId Int?
-  parentId Int? //대댓글을 위한 자기참조
-  parent Comment? @relation("CommentReplies", fields: [parentId], references: [id])
-  replies Comment[] @relation("CommentReplies")
   likes CommentLike[]
-  report Report[]
 }
 
 // 사용자 신고
@@ -120,24 +104,11 @@ model Report {
   reporter Users @relation(fields: [reporterId], references: [id])
   questionId Int?
   question Question? @relation(fields: [questionId], references: [id])
-  answerId Int?
-  answer Answer? @relation(fields: [answerId], references: [id])
   commentId Int?
   comment Comment? @relation(fields: [commentId], references: [id])
 }
 
-// 답변 좋아요
-model AnswerLike {
-  id Int @id @default(autoincrement())
-  userId Int
-  user Users @relation(fields: [userId], references: [id])
-  answerId Int
-  answer Answer @relation(fields: [answerId], references: [id])
-
-  @@unique([userId, answerId]) // 중복방지
-}
-
-// 대댓글 좋아요
+// 댓글 좋아요
 model CommentLike {
   id Int @id @default(autoincrement())
   userId Int
