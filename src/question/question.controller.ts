@@ -5,6 +5,7 @@ import { CreateQuestionDto } from './dto/create-question.dto';
 import { ListQuestionDto } from './dto/list-question.dto';
 import { Category } from 'src/common/enums/category.enum';
 import { ResponseQuesitonDto } from './dto/detail-question.dto';
+import { ReportDto } from './dto/report-question.dto';
 
 @ApiTags('질문 게시판')
 @Controller('questions')
@@ -44,12 +45,24 @@ export class QuestionController {
 
     //질문 삭제
     @Delete(':id')
-    @ApiOperation({ summary: '질문 삭제', description: '질문(게시글)을 소프트 삭제합니다.' })
+    @ApiOperation({ summary: '질문 삭제', description: '질문(게시글)을 삭제합니다.' })
     async deleteQuestion(@Param('id', ParseIntPipe) id: number) {
         const userId = 1; //req.user.id;
         return await this.questionService.deleteQuestion(id, userId);
     }
-  
+
+    //질문 신고
+    @Post(':id/report')
+    // @UseGuards(AuthGuard)
+    // @ApiBearerAuth()
+    async reportQuestion(
+    @Param('id', ParseIntPipe) questionId: number,
+    @Body() reportDto: ReportDto,
+    // @Request() req
+    ) {
+    const userId = 1; //req.user.id;
+    return this.questionService.reportQuestion(questionId, userId, reportDto); //(questionId, req.user.id, dto);
+    }
     
     
 
