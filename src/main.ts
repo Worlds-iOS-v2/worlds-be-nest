@@ -5,15 +5,21 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  const options = new DocumentBuilder()
-  .setTitle('World Study API')
-  .setDescription('World Study API 명세서')
-  .setVersion('1.0')
-  .build();
 
-  const document = SwaggerModule.createDocument(app, options)
-  SwaggerModule.setup('api-docs', app, document)
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }));
+
+  // Swagger 설정
+  const config = new DocumentBuilder()
+    .setTitle('Worlds API')
+    .setDescription('질문게시판 API 명세서')
+    .setVersion('1.0')
+    // .addBearerAuth()
+    .addTag('questions') 
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, document); // http://localhost:3000/api
+
+  
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();
