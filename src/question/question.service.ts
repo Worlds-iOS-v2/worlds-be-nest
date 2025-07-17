@@ -4,6 +4,7 @@ import { CreateQuestionDto } from './dto/create-question.dto';
 import { ListQuestionDto } from './dto/list-question.dto';
 import { ResponseQuesitonDto } from './dto/detail-question.dto';
 import { Category } from 'src/common/enums/category.enum';
+import { ReportDto } from './dto/report-question.dto';
 
 @Injectable()
 export class QuestionService {
@@ -98,6 +99,18 @@ export class QuestionService {
       where: { id },
       data: {
         isDeleted: true,
+      },
+    });
+  }
+
+  // 질문 신고
+  async reportQuestion(questionId: number, reporterId: number, dto: ReportDto) {
+    return this.prisma.report.create({
+      data: {
+        reason: dto.reason,
+        // etcReason: dto.etcReason, // 기타 사유 입력 시 사용
+        reporterId,
+        questionId,
       },
     });
   }
