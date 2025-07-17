@@ -80,13 +80,13 @@ export class UserService {
     async findUserForResetPassword(userId: number) {
         return await this.prisma.users.findUnique({
             where: {
-                id: userId
+                id: userId,
             },
             select: {
                 id: true,
                 passwordHash: true,
             }
-        })
+        });
     }
 
     // 로그인해서 인증된 유저 넘기기

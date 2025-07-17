@@ -156,7 +156,7 @@ export class AuthService {
         }
     }
 
-    // 리프레시 토큰 검증 + 재발급
+    // 리프레시 토큰 검증 + 액세스 토큰 재발급
     async validateRefreshToken(token: string) {
         try {
             // 1. JWT 검증
