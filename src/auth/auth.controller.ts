@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards, Request, Patch } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards, Request, Patch, Req } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from './dto/CreateUserDto';
 import { CheckEmailDto } from './dto/CheckEmailDto';
@@ -7,6 +7,8 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { UserService } from 'src/user/user.service';
 import { Request as ExpressRequest } from 'express';
 import { ApiBody, ApiHeader, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { UpdatePasswordDto } from './dto/UpdatePasswordDto';
+import { FindEmailDto } from './dto/FindEmailDto';
 
 @Controller('auth')
 export class AuthController {
@@ -89,6 +91,28 @@ export class AuthController {
   async getUserInfo(@Request() req: ExpressRequest) {
     const userId = (req.user as any).sub;
     return this.authService.getUserInfo(userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('change-password')
+  @ApiOperation({ summary: '비밀번호 변경' })
+  @ApiHeader({
+    name: 'Authorization',
+    description: '액세스 토큰 값 입력, EX) Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+  })
+  @ApiBody({ type: UpdatePasswordDto })
+  @ApiResponse({ status: 200, description: '비밀번호 변경 성공' })
+  async changePassword(@Request() req: ExpressRequest) {
+    const userId = (req.user as any).sub;
+    const updatePasswordDto = req.body as UpdatePasswordDto;
+    return this.authService.updatePassword(userId, updatePasswordDto);
+  }
+
+  @Post('find-email')
+  @ApiOperation({ summary: '이메일 찾기' })
+  @ApiResponse({ status: 200, description: '이메일 찾기 성공' })
+  async findEmail(@Body() findEmailDto: FindEmailDto) {
+    return this.authService.findEmail(findEmailDto);
   }
 
 }
