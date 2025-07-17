@@ -37,7 +37,6 @@ model Translations {
     mentee Users @relation(fields: [menteeId], references: [id])
     originalText String[]
     translatedText String[]
-    targetLanguage String
     keyConcept String
     createdAt DateTime @default(now())
 }

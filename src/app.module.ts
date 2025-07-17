@@ -5,6 +5,7 @@ import { AppService } from './app.service';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { PrismaService } from './prisma/prisma.service';
+import { OcrModule } from './ocr/ocr.module';
 
 @Module({
   imports: [
@@ -12,7 +13,7 @@ import { PrismaService } from './prisma/prisma.service';
       isGlobal: true,
     }),
     UserModule, 
-    AuthModule
+    AuthModule, OcrModule
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],
