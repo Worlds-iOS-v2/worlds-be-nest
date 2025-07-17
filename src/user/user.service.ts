@@ -76,6 +76,19 @@ export class UserService {
         });
     }
 
+    // 비밀번호 변경을 위한 유저 찾기
+    async findUserForResetPassword(userId: number) {
+        return await this.prisma.users.findUnique({
+            where: {
+                id: userId
+            },
+            select: {
+                id: true,
+                passwordHash: true,
+            }
+        })
+    }
+
     // 로그인해서 인증된 유저 넘기기
     async signInWithEmail(signinform: SignInDto) {
         const plainPWD = signinform.password;
