@@ -6,7 +6,6 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma"
 }
 
 datasource db {
@@ -14,6 +13,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// 사용자
 model Users {
     id Int @id @default(autoincrement())
     userName String
@@ -32,6 +32,7 @@ model Users {
     commentLikes CommentLike[]
 }
 
+// 문제 번역
 model Translations {
     id Int @id @default(autoincrement())
     menteeId Int
@@ -39,6 +40,8 @@ model Translations {
     originalText String[]
     translatedText String[]
     keyConcept String
+    summary String
+    solution String
     createdAt DateTime @default(now())
 }
 

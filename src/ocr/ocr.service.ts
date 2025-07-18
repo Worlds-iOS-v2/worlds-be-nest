@@ -96,6 +96,32 @@ export class OcrService {
         }
         console.log(translateResults);
 
+
+        await this.prisma.translations.create({
+            data: {
+                originalText: ocrResults,
+                menteeId: userId,
+                translatedText: translateResults,
+                keyConcept: '',
+                solution: '',
+                summary: '',
+                createdAt: new Date(),
+            }
+        })
+
+        return {
+            message: 'OCR 요청 성공',
+            data: [
+                {
+                    originalText: ocrResults,
+                    translatedText: translateResults,
+                }
+            ],
+            statusCode: 200,
+        }
+    }
+
+    async solution(userId: number) {
         const user = await this.prisma.users.findUnique({
             where: {
                 id: userId,
@@ -107,16 +133,30 @@ export class OcrService {
         if (!user) {
             throw new NotFoundException('사용자를 찾을 수 없습니다.');
         }
+
+        const requestUser = await this.prisma.translations.findFirst({
+            where: {
+                menteeId: userId,
+            },
+            select: {
+                translatedText: true,
+            }
+        })
+        if (!requestUser) {
+            throw new NotFoundException('문제를 찾을 수 없습니다.');
+        }
+
         const targetLanguage = user.targetLanguage;
+        const problem: string[] = requestUser.translatedText;
 
         const questionPrompt = `
-                You are a helpful assistant for students who need problem explanations translated into en.
+                You are a helpful assistant for students who need problem explanations translated into ko.
 
                 Given the following problem:
-                ${translateResults.join('\n')}
+                ${problem.join('\n')}
 
                 Please provide:
-                1. A detailed solution to the problem in english
+                1. A detailed solution to the problem in ko
                 2. Key concepts that are important for understanding this problem (express as a single word)
                 3. A brief summary of what the problem is asking
 
@@ -127,7 +167,7 @@ export class OcrService {
                     "summary": "brief summary here"
                 }
 
-                Make sure your response is valid JSON and the solution is in en.
+                Make sure your response is valid JSON and the solution is in ko.
             `;
 
         const messages: any[] = [
@@ -137,7 +177,7 @@ export class OcrService {
             },
             {
                 "role": "user",
-                "content": `Hello, im a student and i need to solve the problem ${translateResults.join('\n')} 
+                "content": `Hello, im a student and i need to solve the problem ${problem.join(' ')} 
                                 and i need to know the key concepts of the problem.
                         `
             }
@@ -149,15 +189,15 @@ export class OcrService {
             max_completion_tokens: 10000
         });
 
-                // GPT 응답을 JSON으로 파싱
+        // GPT 응답 파싱
         const gptContent = gptResults.choices[0].message.content;
         console.log('GPT 응답 내용:', gptContent);
         console.log('GPT 응답 타입:', typeof gptContent);
-        
+
         if (!gptContent) {
             throw new Error('GPT 응답이 비어있습니다.');
         }
-        
+
         let gptResponse;
         try {
             gptResponse = JSON.parse(gptContent);
@@ -167,90 +207,27 @@ export class OcrService {
             throw new Error('GPT 응답을 JSON으로 파싱할 수 없습니다.');
         }
 
-        await this.prisma.translations.create({
+        await this.prisma.translations.update({
+            where: {
+                id: userId,
+            },
             data: {
-                originalText: ocrResults,
                 keyConcept: gptResponse.keyConcept,
-                menteeId: userId,
-                translatedText: translateResults,
-                createdAt: new Date(),
+                solution: gptResponse.solution,
+                summary: gptResponse.summary,
             }
         })
 
         return {
-            message: 'OCR 요청 성공',
-            data: [
-                {
-                    originalText: ocrResults,
-                    translatedText: translateResults,
-                    keyConcept: gptResponse.keyConcept,
-                    solution: gptResponse.solution,
-                    summary: gptResponse.summary
-                }
-            ],
+            message: 'Solution 요청 성공',
             statusCode: 200,
+            keyConcept: gptResponse.keyConcept,
+            solution: gptResponse.solution,
+            summary: gptResponse.summary
         }
+    } catch(error) {
+        throw new Error(`OpenAI API 호출 실패: ${error.message}`);
     }
-
-    async solution(userId: number, problem: string[]) {
-        try {
-            const user = await this.prisma.users.findUnique({
-                where: {
-                    id: userId,
-                },
-                select: {
-                    targetLanguage: true
-                }
-            })
-            if (!user) {
-                throw new NotFoundException('사용자를 찾을 수 없습니다.');
-            }
-            const targetLanguage = user.targetLanguage;
-
-            const questionPrompt = `
-                You are a helpful assistant for students who need problem explanations translated into ${targetLanguage}.
-
-                Given the following problem:
-                ${problem.join('\n')}
-
-                Please provide:
-                1. A detailed solution to the problem in ${targetLanguage}
-                2. Key concepts that are important for understanding this problem (express as a single word)
-                3. A brief summary of what the problem is asking
-
-                Please respond in the following JSON format:
-                {
-                    "solution": "detailed solution here",
-                    "keyConcept": "key concepts here",
-                    "summary": "brief summary here"
-                }
-
-                Make sure your response is valid JSON and the solution is in ${targetLanguage}.
-            `;
-
-            const messages: any[] = [
-                {
-                    "role": "system",
-                    "content": questionPrompt
-                },
-                {
-                    "role": "user",
-                    "content": `Hello, im a student and i need to solve the problem ${problem.join('\n')} 
-                                and i need to know the key concepts of the problem.
-                    `
-                }
-            ];
-
-            const result = await this.client.chat.completions.create({
-                model: this.configService.get('AZURE_OPENAI_DEPLOYMENT_NAME') || 'o4-mini',
-                messages: messages,
-                max_completion_tokens: 1000
-            });
-
-            return result;
-        } catch (error) {
-            throw new Error(`OpenAI API 호출 실패: ${error.message}`);
-        }
-    }
-
 }
+
+

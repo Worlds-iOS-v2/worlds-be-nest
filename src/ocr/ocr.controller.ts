@@ -19,4 +19,13 @@ export class OcrController {
     const requestOCRDto = req.body as RequestOCRDto;
     return this.ocrService.ocr(userId, requestOCRDto)
   }
+
+  @Post('solution')
+  @ApiOperation({ summary: 'Solution 요청' })
+  @ApiResponse({ status: 200, description: 'Solution 요청 성공' })
+  @UseGuards(JwtAuthGuard)
+  async solution(@Request() req: ExpressRequest) {
+    const userId = (req.user as any).sub;
+    return this.ocrService.solution(userId);
+  }
 }

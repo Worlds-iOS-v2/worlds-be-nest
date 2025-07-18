@@ -1,3 +1,9 @@
+-- CreateEnum
+CREATE TYPE "Category" AS ENUM ('study', 'free');
+
+-- CreateEnum
+CREATE TYPE "ReportReason" AS ENUM ('offensive', 'sexual', 'ad', 'etc');
+
 -- CreateTable
 CREATE TABLE "Users" (
     "id" SERIAL NOT NULL,
@@ -9,6 +15,7 @@ CREATE TABLE "Users" (
     "mentorCode" TEXT,
     "reportCount" INTEGER NOT NULL DEFAULT 0,
     "refreshToken" TEXT NOT NULL,
+    "targetLanguage" TEXT NOT NULL,
 
     CONSTRAINT "Users_pkey" PRIMARY KEY ("id")
 );
@@ -18,32 +25,46 @@ CREATE TABLE "Translations" (
     "id" SERIAL NOT NULL,
     "menteeId" INTEGER NOT NULL,
     "originalText" TEXT[],
-    "translatedTest" TEXT[],
-    "targetLanguage" TEXT NOT NULL,
-    "keyConcept" TEXT NOT NULL,
+    "translatedText" TEXT[],
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Translations_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
+CREATE TABLE "Analysis" (
+    "id" SERIAL NOT NULL,
+    "translationId" INTEGER NOT NULL,
+    "keyConcept" TEXT NOT NULL,
+    "summary" TEXT NOT NULL,
+    "solution" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Analysis_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Question" (
     "id" SERIAL NOT NULL,
+    "title" TEXT NOT NULL,
     "content" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
+    "isAnswered" BOOLEAN NOT NULL DEFAULT false,
+    "answerCount" INTEGER NOT NULL DEFAULT 0,
+    "category" "Category" NOT NULL,
+    "userId" INTEGER NOT NULL,
 
     CONSTRAINT "Question_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "Answer" (
+CREATE TABLE "Attachment" (
     "id" SERIAL NOT NULL,
-    "content" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "deleted" BOOLEAN NOT NULL DEFAULT false,
+    "url" TEXT NOT NULL,
     "questionId" INTEGER NOT NULL,
-    "userId" INTEGER NOT NULL,
 
-    CONSTRAINT "Answer_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Attachment_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -52,8 +73,8 @@ CREATE TABLE "Comment" (
     "content" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "deleted" BOOLEAN NOT NULL DEFAULT false,
+    "questionId" INTEGER NOT NULL,
     "userId" INTEGER NOT NULL,
-    "answerId" INTEGER,
     "parentId" INTEGER,
 
     CONSTRAINT "Comment_pkey" PRIMARY KEY ("id")
@@ -66,19 +87,9 @@ CREATE TABLE "Report" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "reporterId" INTEGER NOT NULL,
     "questionId" INTEGER,
-    "answerId" INTEGER,
-    "commnetId" INTEGER,
+    "commentId" INTEGER,
 
     CONSTRAINT "Report_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "AnswerLike" (
-    "id" SERIAL NOT NULL,
-    "userId" INTEGER NOT NULL,
-    "answerId" INTEGER NOT NULL,
-
-    CONSTRAINT "AnswerLike_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -97,25 +108,25 @@ CREATE UNIQUE INDEX "Users_userEmail_key" ON "Users"("userEmail");
 CREATE UNIQUE INDEX "Users_mentorCode_key" ON "Users"("mentorCode");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "AnswerLike_userId_answerId_key" ON "AnswerLike"("userId", "answerId");
-
--- CreateIndex
 CREATE UNIQUE INDEX "CommentLike_userId_commentId_key" ON "CommentLike"("userId", "commentId");
 
 -- AddForeignKey
 ALTER TABLE "Translations" ADD CONSTRAINT "Translations_menteeId_fkey" FOREIGN KEY ("menteeId") REFERENCES "Users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Answer" ADD CONSTRAINT "Answer_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "Question"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Analysis" ADD CONSTRAINT "Analysis_translationId_fkey" FOREIGN KEY ("translationId") REFERENCES "Translations"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Answer" ADD CONSTRAINT "Answer_userId_fkey" FOREIGN KEY ("userId") REFERENCES "Users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Question" ADD CONSTRAINT "Question_userId_fkey" FOREIGN KEY ("userId") REFERENCES "Users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Attachment" ADD CONSTRAINT "Attachment_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "Question"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Comment" ADD CONSTRAINT "Comment_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "Question"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Comment" ADD CONSTRAINT "Comment_userId_fkey" FOREIGN KEY ("userId") REFERENCES "Users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Comment" ADD CONSTRAINT "Comment_answerId_fkey" FOREIGN KEY ("answerId") REFERENCES "Answer"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Comment" ADD CONSTRAINT "Comment_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Comment"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -127,16 +138,7 @@ ALTER TABLE "Report" ADD CONSTRAINT "Report_reporterId_fkey" FOREIGN KEY ("repor
 ALTER TABLE "Report" ADD CONSTRAINT "Report_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "Question"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Report" ADD CONSTRAINT "Report_answerId_fkey" FOREIGN KEY ("answerId") REFERENCES "Answer"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Report" ADD CONSTRAINT "Report_commnetId_fkey" FOREIGN KEY ("commnetId") REFERENCES "Comment"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "AnswerLike" ADD CONSTRAINT "AnswerLike_userId_fkey" FOREIGN KEY ("userId") REFERENCES "Users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "AnswerLike" ADD CONSTRAINT "AnswerLike_answerId_fkey" FOREIGN KEY ("answerId") REFERENCES "Answer"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Report" ADD CONSTRAINT "Report_commentId_fkey" FOREIGN KEY ("commentId") REFERENCES "Comment"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "CommentLike" ADD CONSTRAINT "CommentLike_userId_fkey" FOREIGN KEY ("userId") REFERENCES "Users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
