@@ -5,4 +5,6 @@ export class CreateCommentDto {
   @IsNotEmpty()
   @ApiProperty({ description: '답변 내용', example: '답변 내용' })
   content: string;
+  questionId: number;
+  parentId?: number;
 }

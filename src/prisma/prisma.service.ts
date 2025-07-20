@@ -1,9 +1,17 @@
-import { Injectable, OnModuleInit, OnModuleDestroy, Global } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
+import {
+  Injectable,
+  OnModuleInit,
+  OnModuleDestroy,
+  Global,
+} from '@nestjs/common';
+import { PrismaClient } from '../../generated/prisma';
 
 @Global()
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+export class PrismaService
+  extends PrismaClient
+  implements OnModuleInit, OnModuleDestroy
+{
   async onModuleInit() {
     // 임시로 데이터베이스 연결 비활성화
     await this.$connect();

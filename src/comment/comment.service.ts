@@ -24,7 +24,7 @@ export class CommentService {
           select: {
             id: true,
             userName: true,
-            inMentor: true,
+            isMentor: true,
           },
         },
         _count: {
@@ -42,11 +42,19 @@ export class CommentService {
     parentId: number,
     dto: CreateCommentDto,
   ) {
+    // 부모 댓글 조회
+    const parentComment = await this.prisma.comment.findUnique({
+      where: { id: parentId },
+    });
+    if (!parentComment) {
+      throw new Error('부모 댓글이 존재하지 않습니다.');
+    }
     return this.prisma.comment.create({
       data: {
         content: dto.content,
         userId,
-        parent: { connect: { id: parentId } },
+        parentId,
+        questionId: parentComment.questionId,
       },
       include: {
         user: {
