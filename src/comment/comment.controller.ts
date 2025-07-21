@@ -12,6 +12,7 @@ import {
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { CommentService } from './comment.service';
+import { CreateReportDto } from './dto/create-report.dto';
 
 @Controller('comment')
 @ApiTags('comment')
@@ -75,6 +76,24 @@ export class CommentController {
   @ApiOperation({ summary: '내가 작성한 모든 댓글 목록' })
   async getMyComments(@Request() req) {
     return this.commentService.getMyComments(req.user.id);
+  }
+
+  // 댓글 신고
+  // @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Post(':id/report')
+  @ApiOperation({ summary: '댓글 신고' })
+  async reportComment(
+    @Param('id') commentId: string,
+    @Body() dto: CreateReportDto,
+    @Request() req,
+  ) {
+    const userId = 1; // 임시
+    return this.commentService.reportComment(
+      Number(commentId),
+      dto,
+      userId, // req.user.id
+    );
   }
 
   // 댓글 삭제 (soft-delete)

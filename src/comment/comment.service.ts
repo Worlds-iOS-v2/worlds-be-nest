@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { connect } from 'http2';
+import { CreateReportDto } from './dto/create-report.dto';
 
 @Injectable()
 export class CommentService {
@@ -91,6 +92,33 @@ export class CommentService {
         user: true,
       },
       orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  // 댓글 신고
+  async reportComment(
+    commentId: number,
+    dto: CreateReportDto,
+    reporterId: number,
+  ) {
+    const existingReport = await this.prisma.report.findFirst({
+      where: {
+        commentId,
+        reporterId,
+      },
+    });
+
+    if (existingReport) {
+      throw new BadRequestException('이미 이 댓글을 신고하셨습니다.');
+    }
+
+    return this.prisma.report.create({
+      data: {
+        reason: dto.reason,
+        reporterId,
+        commentId,
+        questionId: dto.questionId,
+      },
     });
   }
 
