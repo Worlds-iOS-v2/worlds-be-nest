@@ -77,13 +77,18 @@ export class CommentController {
     return this.commentService.getMyComments(req.user.id);
   }
 
-  // 댓글 삭제
+  // 댓글 삭제 (soft-delete)
   // @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @Delete(':id')
-  @ApiOperation({ summary: '댓글 삭제' })
+  @ApiOperation({ summary: '댓글 삭제 (soft-delete)' })
   async deleteComment(@Param('id') id: string, @Request() req) {
-    const userId = 1;
-    return this.commentService.deleteComment(Number(id), userId); // 나중에 userId를 req.user.id로 바꾸기
+    const userId = 1; // TODO: 추후 req.user.id로 교체
+    const commentId = Number(id);
+    if (isNaN(commentId)) {
+      throw new BadRequestException('Invalid comment id');
+    }
+
+    await this.commentService.deleteComment(commentId, userId);
+    return { message: '댓글이 삭제되었습니다 (soft-delete)' };
   }
 }

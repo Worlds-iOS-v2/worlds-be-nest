@@ -37,7 +37,7 @@ export class CommentLikeController {
     return this.commentLikeService.commentLikeCount(Number(commentId));
   }
 
-  // comment-like.controller.ts
+  // 좋아요 여부
   // @UseGuards(JwtAuthGuard)
   @Get(':id/isLiked')
   @ApiOperation({ summary: '해당 댓글을 현재 유저가 좋아요 눌렀는지 여부' })

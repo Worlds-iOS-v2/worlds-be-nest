@@ -94,11 +94,17 @@ export class CommentService {
     });
   }
 
-  // 답변 삭제
+  // 댓글 soft-delete
   async deleteComment(id: number, userId: number) {
     const comment = await this.prisma.comment.findUnique({ where: { id } });
     if (!comment || comment.userId !== userId)
-      throw new Error('권한 없음 또는 답변 없음');
-    return this.prisma.comment.delete({ where: { id } });
+      throw new Error('권한 없음 또는 댓글 없음');
+
+    return this.prisma.comment.update({
+      where: { id },
+      data: {
+        deleted: true,
+      },
+    });
   }
 }
