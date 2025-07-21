@@ -1,7 +1,6 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards, Request, Patch, Req } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from './dto/CreateUserDto';
-import { CheckEmailDto } from './dto/CheckEmailDto';
 import { SignInDto } from './dto/SignInDto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { UserService } from 'src/user/user.service';
@@ -9,6 +8,7 @@ import { Request as ExpressRequest } from 'express';
 import { ApiBody, ApiHeader, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { UpdatePasswordDto } from './dto/UpdatePasswordDto';
 import { FindEmailDto } from './dto/FindEmailDto';
+import { CheckEmailDto } from './dto/CheckEmailDto';
 
 @Controller('auth')
 export class AuthController {

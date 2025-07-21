@@ -4,11 +4,11 @@ import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from './dto/CreateUserDto';
 import { ConfigService } from '@nestjs/config';
 import { SignInDto } from './dto/SignInDto';
-import { AuthUser } from 'src/types/auth-user.interface';
 import { UserService } from 'src/user/user.service';
 import { JwtService } from '@nestjs/jwt';
 import { FindEmailDto } from './dto/FindEmailDto';
 import { UpdatePasswordDto } from './dto/UpdatePasswordDto';
+import { AuthUser } from 'src/types/auth-user.interface';
 
 @Injectable()
 export class AuthService {
