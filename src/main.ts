@@ -5,14 +5,15 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-
+  app.enableCors();
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }));
 
   // Swagger 설정
   const config = new DocumentBuilder()
     .setTitle('Worlds API')
-    .setDescription('질문게시판 API 명세서')
+    .setDescription('World Study API 명세서')
     .setVersion('1.0')
-    // .addBearerAuth()
+    .addBearerAuth()
     .addTag('questions') 
     .build();
 
