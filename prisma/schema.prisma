@@ -6,6 +6,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  // output   = "../generated/prisma"\
 }
 
 datasource db {
@@ -108,7 +109,7 @@ model Comment {
 // 사용자 신고
 model Report {
   id Int @id @default(autoincrement())
-  reason String
+  reason ReportReason
   createdAt DateTime @default(now())
   reporterId Int
   reporter Users @relation(fields: [reporterId], references: [id])
