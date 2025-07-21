@@ -6,6 +6,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  // output   = "../generated/prisma"
 }
 
 datasource db {
@@ -46,6 +47,14 @@ model Translations {
 enum Category {
   study
   free
+}
+
+// 신고 사유 선택
+enum ReportReason {
+  offensive
+  sexual
+  ad
+  etc
 }
 
 //질문
@@ -97,7 +106,8 @@ model Comment {
 // 사용자 신고
 model Report {
   id Int @id @default(autoincrement())
-  reason String
+  reason ReportReason
+  // etcReason String? // 기타 사유 입력 시
   createdAt DateTime @default(now())
   reporterId Int
   reporter Users @relation(fields: [reporterId], references: [id])

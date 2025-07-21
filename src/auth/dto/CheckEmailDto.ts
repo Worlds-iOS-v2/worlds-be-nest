@@ -5,7 +5,7 @@ export class CheckEmailDto {
     @IsEmail()
     @ApiProperty({
         description: 'email of the user : unique, not null',
-        example: 'user@example.com',
+        example: 'user@example.com'
     })
     userEmail: string;
 }
