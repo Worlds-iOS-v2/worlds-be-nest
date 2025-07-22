@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { ConfigModule } from '@nestjs/config';
 import { UserModule } from './user/user.module';
 import { OcrModule } from './ocr/ocr.module';
+import { AzureStorageModule } from './azure-storage/azure-storage.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -21,6 +22,7 @@ import { OcrModule } from './ocr/ocr.module';
     CommentModule,
     CommentLikeModule,
     OcrModule,
+    AzureStorageModule,
   ],
   controllers: [AppController],
   providers: [AppService],
