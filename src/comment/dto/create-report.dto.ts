@@ -1,14 +1,19 @@
-import { IsEnum, IsOptional, IsInt } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
 import { ReportReason } from '@prisma/client';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateReportDto {
   @IsEnum(ReportReason)
-  @ApiProperty({ example: '욕설을 포함하고 있어요' })
+  @ApiProperty({ example: 'offensive', enum: ReportReason })
   reason: ReportReason;
 
   @IsOptional()
+  @IsString()
+  @ApiPropertyOptional({ example: '기타 이유를 입력해주세요' })
+  etcReason?: string;
+
+  @IsOptional()
   @IsInt()
-  @ApiProperty({ example: 42 })
+  @ApiPropertyOptional({ example: 42, description: '댓글이 속한 질문 ID' })
   questionId?: number;
 }
