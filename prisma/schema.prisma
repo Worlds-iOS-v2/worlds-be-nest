@@ -13,36 +13,46 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// 사용자
 model Users {
-    id Int @id @default(autoincrement())
-    userName String
-    userEmail String @unique
-    birthday DateTime
-    passwordHash String
-    isMentor Boolean @default(false)
-    mentorCode String? @unique
-    reportCount Int @default(0)
-    refreshToken String
-    targetLanguage String
-    menteeTranslations Translations[]
-    questions Question[]
-    comments Comment[]
-    reports Report[]
-    commentLikes CommentLike[]
+  id                 Int            @id @default(autoincrement())
+  userName           String
+  userEmail          String         @unique
+  birthday           DateTime
+  passwordHash       String
+  isMentor           Boolean        @default(false)
+  mentorCode         String?        @unique
+  reportCount        Int            @default(0)
+  refreshToken       String
+  targetLanguage     String
+
+  comments           Comment[]
+  commentLikes       CommentLike[]
+  questions          Question[]
+  reports            Report[]
+  menteeTranslations Translations[]
+  ocr_images Ocrimages[]
 }
 
-// 문제 번역
 model Translations {
-    id Int @id @default(autoincrement())
-    menteeId Int
-    mentee Users @relation(fields: [menteeId], references: [id])
-    originalText String[]
-    translatedText String[]
-    keyConcept String
-    summary String
-    solution String
-    createdAt DateTime @default(now())
+  id             Int      @id @default(autoincrement())
+  menteeId       Int
+  originalText   String[]
+  translatedText String[]
+  createdAt      DateTime @default(now())
+  keyConcept     String
+  solution       String
+  summary        String
+  mentee         Users    @relation(fields: [menteeId], references: [id])
+}
+
+model Ocrimages {
+  id Int @id @default(autoincrement())
+  userId Int
+  fileName String
+  fileUrl String
+  fileSize Int
+  fileType String
+  user Users @relation(fields: [userId], references: [id])
 }
 
 // 카테고리
