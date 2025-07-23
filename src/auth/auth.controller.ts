@@ -74,7 +74,7 @@ export class AuthController {
   })
   @ApiResponse({ status: 200, description: '로그아웃 성공' })
   async logout(@Request() req: ExpressRequest) {
-    const userId = (req.user as any).sub;
+    const userId = (req.user as any).id;
     return this.authService.logout(userId);
   }
 
@@ -89,7 +89,7 @@ export class AuthController {
   })
   @ApiResponse({ status: 200, description: '사용자 정보 조회 성공' })
   async getUserInfo(@Request() req: ExpressRequest) {
-    const userId = (req.user as any).sub;
+    const userId = (req.user as any).id;
     return this.authService.getUserInfo(userId);
   }
 
@@ -103,7 +103,7 @@ export class AuthController {
   @ApiBody({ type: UpdatePasswordDto })
   @ApiResponse({ status: 200, description: '비밀번호 변경 성공' })
   async changePassword(@Request() req: ExpressRequest) {
-    const userId = (req.user as any).sub;
+    const userId = (req.user as any).id;
     const updatePasswordDto = req.body as UpdatePasswordDto;
     return this.authService.updatePassword(userId, updatePasswordDto);
   }

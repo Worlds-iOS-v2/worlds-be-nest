@@ -38,7 +38,7 @@ export class OcrController {
   @ApiBody({ type: RequestOCRDto })
   @UseGuards(JwtAuthGuard)
   async ocr(@Request() req: ExpressRequest) {
-    const userId = (req.user as any).sub;
+    const userId = (req.user as any).id;
     return this.ocrService.ocr(userId, req.files as Express.Multer.File[])
   }
 
@@ -47,7 +47,7 @@ export class OcrController {
   @ApiResponse({ status: 200, description: 'Solution 요청 성공' })
   @UseGuards(JwtAuthGuard)
   async solution(@Request() req: ExpressRequest) {
-    const userId = (req.user as any).sub;
+    const userId = (req.user as any).id;
     return this.ocrService.solution(userId);
   }
 }
