@@ -20,8 +20,14 @@ async function bootstrap() {
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document); // http://localhost:3000/api
+  SwaggerModule.setup('api', app, document);
 
-  await app.listen(process.env.PORT ?? 3000);
+  // Azure App Service 포트 설정
+  const port = process.env.PORT || 3000;
+  console.log(`Server starting on port: ${port}`);
+  
+  await app.listen(port, '0.0.0.0');
+  console.log(`Application is running on: http://localhost:${port}`);
+  console.log(`Swagger API docs: http://localhost:${port}/api`);
 }
 bootstrap();

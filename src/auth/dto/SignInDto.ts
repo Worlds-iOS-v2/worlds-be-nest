@@ -13,6 +13,10 @@ export class SignInDto {
 
     @IsString()
     @IsNotEmpty({ message: '비밀번호는 필수 입력 항목입니다.' })
+    @ApiProperty({
+        description: 'password of the user : not null',
+        example: 'password123!',
+    })
     @Matches(
       /^(?!^[a-zA-Z]+$)(?!^[0-9]+$)(?!^[^a-zA-Z0-9]+$)[a-zA-Z0-9!@#$%^&*()_+{}\[\]:;<>,.?~\\/-]{8,16}$/,
       {
