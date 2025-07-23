@@ -1,10 +1,9 @@
+import { ReportReason } from '@prisma/client';
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
-import { ReportReason } from 'src/common/enums/report-reason.enum';
+import { IsEnum } from 'class-validator';
 
 export class ReportDto {
-  @ApiProperty({ description: '신고 사유', example: 'offensive', enum: ReportReason })
+  @ApiProperty({ enum: ReportReason, description: '신고 사유' })
   @IsEnum(ReportReason)
-  @IsNotEmpty()
   reason: ReportReason;
 }
