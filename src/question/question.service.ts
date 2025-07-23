@@ -33,26 +33,36 @@ export class QuestionService {
 
     //질문 목록 조회
     async getQuestionList(category?: Category): Promise<ListQuestionDto[]> {
-    const questions = await this.prisma.question.findMany({
-        where: {
-        isDeleted: false, // 삭제되지 않은 질문만 조회
-        ...(category && { category }),
-        },
-        include: {
-        comments: true, 
-        },
-        orderBy: {
-        createdAt: 'desc',
-        },
-    });
+  const questions = await this.prisma.question.findMany({
+    where: {
+      isDeleted: false,
+      ...(category && { category }),
+    },
+    include: {
+      comments: true,
+      user: true,
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+  });
 
-    return questions.map((q) => ({
-        category: q.category as Category,
-        title: q.title,
-        content: q.content,
-        answerCount: q.comments.length,
-    }));
-    }
+  return questions.map((q) => ({
+    id: q.id,
+    title: q.title,
+    content: q.content,
+    category: q.category as Category,
+    createdAt: q.createdAt,
+    isAnswered: q.comments.length > 0,
+    answerCount: q.comments.length,
+    user: {
+      id: q.user.id,
+      user_name: q.user.userName,
+      user_email: q.user.userEmail,
+      user_role: q.user.isMentor,
+    },
+  }));
+}
 
     //질문 상세 조회
     async getQuestionDetail(id: number): Promise<ResponseQuesitonDto> {
