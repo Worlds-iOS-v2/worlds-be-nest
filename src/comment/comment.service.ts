@@ -1,7 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { connect } from 'http2';
+import { CreateReportDto } from './dto/create-report.dto';
+import { ReportReason } from '@prisma/client';
 
 @Injectable()
 export class CommentService {
@@ -77,7 +79,15 @@ export class CommentService {
   async getCommentsByQuestion(questionId: number) {
     return this.prisma.comment.findMany({
       where: { questionId },
-      include: { user: true },
+      include: {
+        user: {
+          select: {
+            id: true,
+            userName: true,
+            isMentor: true,
+          },
+        },
+      },
       orderBy: { id: 'asc' },
     });
   }
@@ -88,9 +98,48 @@ export class CommentService {
       where: { userId },
       include: {
         question: true,
-        user: true,
+        user: {
+          select: {
+            id: true,
+            userName: true,
+            isMentor: true,
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  // 댓글 신고
+  async reportComment(
+    commentId: number,
+    dto: CreateReportDto,
+    reporterId: number,
+  ) {
+    const existingReport = await this.prisma.report.findFirst({
+      where: {
+        commentId,
+        reporterId,
+      },
+    });
+
+    if (existingReport) {
+      throw new BadRequestException('이미 이 댓글을 신고하셨습니다.');
+    }
+
+    // 기타 사유일 경우 etcReason이 있는지 체크
+    if (dto.reason === ReportReason.etc && !dto.etcReason) {
+      throw new BadRequestException('기타 사유를 입력해주세요.');
+    }
+
+    return this.prisma.report.create({
+      data: {
+        reason: dto.reason,
+        etcReason: dto.etcReason,
+        reporterId,
+        commentId,
+        questionId: dto.questionId,
+      },
     });
   }
 
