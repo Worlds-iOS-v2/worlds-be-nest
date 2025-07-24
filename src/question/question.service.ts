@@ -80,13 +80,20 @@ export class QuestionService {
     }
 
     return {
+      id: question.id,
       title: question.title,
       content: question.content,
       createdAt: question.createdAt,
-      userName: question.user.userName,
       answerCount: question.comments.length,
       category: question.category as Category,
       attachments: question.attachments.map((a) => a.url),
+      user: { //userName삭제하고 user객체로 통합
+        id: question.user.id,
+        user_name: question.user.userName,
+        user_email: question.user.userEmail,
+        user_role: question.user.isMentor,
+  },
+      
     };
   }
 
