@@ -10,6 +10,8 @@ import {
   UseGuards,
   Req,
   UnauthorizedException,
+  UploadedFiles,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -17,6 +19,7 @@ import {
   ApiQuery,
   ApiResponse,
   ApiTags,
+  ApiBody, ApiConsumes
 } from '@nestjs/swagger';
 import { QuestionService } from './question.service';
 import { CreateQuestionDto } from './dto/create-question.dto';
@@ -26,6 +29,8 @@ import { ResponseQuesitonDto } from './dto/detail-question.dto';
 import { ReportDto } from './dto/report-question.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { Request as ExpressRequest } from 'express';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { AzureStorageService } from 'src/common/azure-storage/azure-storage.service';
 
 interface AuthenticatedRequest extends ExpressRequest {
   user?: {
@@ -39,7 +44,10 @@ interface AuthenticatedRequest extends ExpressRequest {
 @Controller('questions')
 @ApiBearerAuth()
 export class QuestionController {
-  constructor(private readonly questionService: QuestionService) {}
+  constructor(
+    private readonly questionService: QuestionService,
+    private readonly azureStorageService: AzureStorageService,
+  ) {}
 
   // 질문 생성
   @Post()
@@ -53,6 +61,41 @@ export class QuestionController {
     if (!userId) throw new UnauthorizedException('로그인이 필요합니다.');
     return await this.questionService.createQuestion(createQuestionDto, userId);
   }
+
+  // 질문 이미지 추가 등록
+  @Post('with-image')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FilesInterceptor('images', 3))
+  @ApiOperation({ summary: '질문 등록(이미지 포함)' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        content: { type: 'string' },
+        category: { type: 'string', enum: Object.values(Category) },
+        images: {
+          type: 'array',
+          items: { type: 'string', format: 'binary' },
+        },
+      },
+    },
+  })
+  async createQuestionWithImages(
+    @Body() createDto: CreateQuestionDto,
+    @UploadedFiles() files: Express.Multer.File[],
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const userId = req.user?.id;
+    if (!userId) throw new UnauthorizedException('로그인이 필요합니다.');
+
+    const urls = await Promise.all(
+      (files ?? []).map((f) => this.azureStorageService.upload(f.buffer, f.originalname)),
+    );
+
+    return this.questionService.createQuestion(createDto, userId, urls);
+ }
 
   // 질문 리스트 조회
   @Get()
