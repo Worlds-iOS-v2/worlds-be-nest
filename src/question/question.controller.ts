@@ -32,6 +32,7 @@ import { Request as ExpressRequest } from 'express';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { AzureStorageService } from 'src/common/azure-storage/azure-storage.service';
 
+
 interface AuthenticatedRequest extends ExpressRequest {
   user?: {
     id: number;
@@ -84,7 +85,7 @@ export class QuestionController {
   })
   async createQuestionWithImages(
     @Body() createDto: CreateQuestionDto,
-    @UploadedFiles() files: Express.Multer.File[],
+    @UploadedFiles() files: any[],
     @Req() req: AuthenticatedRequest,
   ) {
     const userId = req.user?.id;
