@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 import * as bcrypt from 'bcrypt';
@@ -100,17 +100,25 @@ export class UserService {
         });
 
         if (!user) {
-            throw new HttpException(
-                '사용자를 찾을 수 없습니다.',
-                HttpStatus.NOT_FOUND,
-            );
+            throw new BadRequestException({
+                message: ['사용자를 찾을 수 없습니다.'],
+                error: 'NotFound',
+                statusCode: 404,
+            });
         }
 
-        // 비밀번호 일치하는지 확인
-        const isMatch = await this.comparePassword(plainPWD, user.passwordHash || '');
+        // 이메일 일치하는지 확인
+        const isEmailMatch = user.userEmail === signinform.userEmail;
 
-        if (!isMatch || !user) {
-            throw new UnauthorizedException('일치하는 정보가 없습니다. 이메일 혹은 비밀번호를 확인해주세요.');
+        // 비밀번호 일치하는지 확인
+        const isPasswordMatch = await this.comparePassword(plainPWD, user.passwordHash || '');
+
+        if (!isPasswordMatch || !isEmailMatch) {
+            throw new UnauthorizedException({
+                message: ['일치하는 정보가 없습니다. 이메일 혹은 비밀번호를 확인해주세요.'],
+                error: 'Unauthorized',
+                statusCode: 401,
+            });
         }
 
         return user;

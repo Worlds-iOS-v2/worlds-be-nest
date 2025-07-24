@@ -25,6 +25,9 @@ export class AuthService {
         console.log('회원가입 시작');
         const trimEmail = signupform.userEmail.toLowerCase().trim();
 
+        // 이메일 중복 체크
+        await this.checkEmailUnique(trimEmail);
+
         // 비밀번호 해싱
         const salt = parseInt(this.config.get('SALT_ROUNDS') || '10');
         const hashedPassword = await bcrypt.hash(signupform.password, salt);
@@ -56,7 +59,11 @@ export class AuthService {
         });
 
         if (user) {
-            throw new UnauthorizedException('이미 존재하는 이메일입니다.');
+            throw new BadRequestException({
+                message: ['이미 존재하는 이메일입니다.'],
+                error: 'BadRequest',
+                statusCode: 400,
+            });
         }
 
         return {
@@ -67,7 +74,7 @@ export class AuthService {
     
     // signin
     async signIn(signinform: SignInDto) {
-        const user = await this.validateUser(signinform.userEmail, signinform.password);
+        const user = await this.validateUser(signinform);
         
         const accessPayload = {
             sub: user.id,
@@ -94,6 +101,7 @@ export class AuthService {
         return {
             statusCode: 200,
             message: '로그인 성공',
+            username: user.userName,
             access_token: accessToken,
             refresh_token: refreshToken,
         }
@@ -111,7 +119,11 @@ export class AuthService {
         })
 
         if (!user) {
-            throw new UnauthorizedException('사용자를 찾을 수 없습니다.');
+            throw new UnauthorizedException({
+                message: ['사용자를 찾을 수 없습니다.'],
+                error: 'Unauthorized',
+                statusCode: 401,
+            });
         }
 
         return {
@@ -125,17 +137,29 @@ export class AuthService {
     async updatePassword(userId: number, updatepasswordform: UpdatePasswordDto) {
         const user = await this.userService.findUserForResetPassword(userId);
         if (!user) {
-            throw new UnauthorizedException('사용자를 찾을 수 없습니다.');
+            throw new UnauthorizedException({
+                message: ['사용자를 찾을 수 없습니다.'],
+                error: 'Unauthorized',
+                statusCode: 401,
+            });
         }
 
         const isMatch = await bcrypt.compare(updatepasswordform.org_password, user.passwordHash);
         if (!isMatch) {
-            throw new UnauthorizedException('비밀번호가 일치하지 않습니다.');
+            throw new UnauthorizedException({
+                message: ['비밀번호가 일치하지 않습니다.'],
+                error: 'Unauthorized',
+                statusCode: 401,
+            });
         }
 
         const isExsists = await bcrypt.compare(updatepasswordform.new_password, user.passwordHash);
         if (isExsists) {
-            throw new BadRequestException('기존에 사용하던 비밀번호와 동일합니다. 다른 비밀번호를 입력해주세요.');
+            throw new BadRequestException({
+                message: ['기존에 사용하던 비밀번호와 동일합니다. 다른 비밀번호를 입력해주세요.'],
+                error: 'BadRequest',
+                statusCode: 400,
+            });
         }
 
         const salt = parseInt(this.config.get('SALT_ROUNDS') || '10');
@@ -167,16 +191,28 @@ export class AuthService {
 
             // 2. 토큰 타입 검증
             if (decoded.type !== 'refresh') {
-                throw new UnauthorizedException('Refresh token이 아닙니다.');
+                throw new UnauthorizedException({
+                    message: ['Refresh token이 아닙니다.'],
+                    error: 'Unauthorized',
+                    statusCode: 401,
+                });
             }
 
             // 3. 사용자 존재 및 토큰 검증
             if (!user || !user.refreshToken || user.refreshToken === '') {
-                throw new UnauthorizedException('사용자 또는 토큰을 찾을 수 없습니다.');
+                throw new UnauthorizedException({
+                    message: ['사용자 또는 토큰을 찾을 수 없습니다.'],
+                    error: 'Unauthorized',
+                    statusCode: 401,
+                });
             }
 
             if (token !== user.refreshToken) {
-                throw new UnauthorizedException('유효하지 않는 토큰입니다.');
+                throw new UnauthorizedException({
+                    message: ['유효하지 않는 토큰입니다.'],
+                    error: 'Unauthorized',
+                    statusCode: 401,
+                });
             }
 
             const accessPayload = {
@@ -206,7 +242,11 @@ export class AuthService {
                 errorStack: error?.stack,
             });
 
-            throw new UnauthorizedException('토큰이 유효하지 않습니다.');
+            throw new UnauthorizedException({
+                message: ['토큰이 유효하지 않습니다.'],
+                error: 'Unauthorized',
+                statusCode: 401,
+            });
         }
     }
 
@@ -236,7 +276,11 @@ export class AuthService {
         const user = await this.userService.findUserById(userId);
 
         if (!user) {
-            throw new UnauthorizedException('사용자를 찾을 수 없습니다.');
+            throw new UnauthorizedException({
+                message: ['사용자를 찾을 수 없습니다.'],
+                error: 'Unauthorized',
+                statusCode: 401,
+            });
         }
 
         return {
@@ -248,17 +292,24 @@ export class AuthService {
 
     // 로그인 유저 검증
     async validateUser (
-        userEmail: string,
-        password: string,
+        signinform: SignInDto,
     ): Promise<AuthUser> {
-        const user = await this.userService.findUserForValidation(userEmail);
+        const user = await this.userService.findUserForValidation(signinform.userEmail);
         if (!user) {
-            throw new UnauthorizedException('이메일 또는 비밀번호가 일치하지 않습니다.');
+            throw new UnauthorizedException({
+                message: ['이메일 또는 비밀번호가 일치하지 않습니다.'],
+                error: 'Unauthorized',
+                statusCode: 401,
+            });
         }
-        const isMatch = await bcrypt.compare(password, user.passwordHash);
+        const isMatch = await bcrypt.compare(signinform.password, user.passwordHash);
 
         if (!isMatch) {
-            throw new UnauthorizedException('이메일 또는 비밀번호가 일치하지 않습니다.');
+            throw new UnauthorizedException({
+                message: ['이메일 또는 비밀번호가 일치하지 않습니다.'],
+                error: 'Unauthorized',
+                statusCode: 401,
+            });
         }
 
         const { passwordHash: _, refreshToken: __, ...safeUser } = user;

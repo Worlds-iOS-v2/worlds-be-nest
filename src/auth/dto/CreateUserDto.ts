@@ -30,7 +30,7 @@ export class CreateUserDto {
     password: string;
 
     @IsString()
-    @IsNotEmpty()
+    @IsNotEmpty({ message: '이름은 필수 입력 항목입니다.' })
     @ApiProperty({
         description: 'name of the user : not null',
         example: '이건희',
@@ -39,7 +39,7 @@ export class CreateUserDto {
 
     @Transform(({ value }) => new Date(value))
     @IsDate()
-    @IsNotEmpty()
+    @IsNotEmpty({ message: '생년월일은 필수 입력 항목입니다.' })
     @ApiProperty({
         description: 'birth date of the user : not null',
         example: '1990-01-01',
@@ -47,7 +47,7 @@ export class CreateUserDto {
     userBirth: Date;
 
     @IsBoolean()
-    @IsNotEmpty()
+    @IsNotEmpty({ message: '멘토 여부는 필수 입력 항목입니다.' })
     @ApiProperty({
         description: 'is the user a mentor? : not null',
         example: true,
@@ -71,7 +71,7 @@ export class CreateUserDto {
     mentorCode?: string;
 
     @IsString()
-    @IsNotEmpty()
+    @IsNotEmpty({ message: '번역할 언어는 필수 입력 항목입니다.' })
     @ApiProperty({
         description: 'target language of the user : not null',
         example: 'English',
