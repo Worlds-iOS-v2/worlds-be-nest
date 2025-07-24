@@ -1,16 +1,3 @@
-# Notify
-## 🌟 schema.prisma 작성/수정 시
-
-```bash
-main에 push 후 알리기
-
-pull 진행
-
-#pull 이후 
-npx prisma migrate dev --name 이슈이름(ex.add-report-column)
-```
-
-
 <p align="center">
   <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
 </p>

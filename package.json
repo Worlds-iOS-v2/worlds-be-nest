@@ -21,7 +21,6 @@
   },
   "dependencies": {
     "@azure/storage-blob": "^12.27.0",
-    "@nestjs/azure-storage": "^4.0.0",
     "@nestjs/cache-manager": "^3.0.1",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
@@ -45,7 +44,7 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "ioredis": "^5.6.1",
-    "multer": "^2.0.2",
+    "multer": "^2.0.1",
     "nodemon": "^3.1.10",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",

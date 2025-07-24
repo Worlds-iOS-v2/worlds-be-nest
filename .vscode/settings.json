@@ -1,5 +1,0 @@
-{
-  "appService.zipIgnorePattern": ["node_modules{,/**}", ".vscode{,/**}"],
-  "appService.defaultWebAppToDeploy": "/subscriptions/bb668074-ce6e-4f44-bcc1-92c29b86082a/resourceGroups/rg-worldstudy/providers/Microsoft.Web/sites/worldstudy",
-  "appService.deploySubpath": "."
-}
