@@ -5,11 +5,12 @@ import { SignInDto } from './dto/SignInDto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { UserService } from 'src/user/user.service';
 import { Request as ExpressRequest } from 'express';
-import { ApiBody, ApiHeader, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiBody, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { UpdatePasswordDto } from './dto/UpdatePasswordDto';
 import { FindEmailDto } from './dto/FindEmailDto';
 import { CheckEmailDto } from './dto/CheckEmailDto';
 
+@ApiTags('사용자')
 @Controller('auth')
 export class AuthController {
   constructor(
