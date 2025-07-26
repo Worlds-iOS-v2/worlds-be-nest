@@ -6,7 +6,7 @@ export class CheckEmailDto {
     @IsNotEmpty({ message: '이메일은 필수 입력 항목입니다.' })
     @ApiProperty({
         description: 'email of the user : unique, not null',
-        example: 'user@example.com'
+        example: 'user@example.com',
     })
     userEmail: string;
 }

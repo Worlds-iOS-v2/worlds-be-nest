@@ -1,12 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
-  // output   = "../generated/prisma"
 }
 
 datasource db {
@@ -14,45 +7,114 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// 사용자
 model Users {
-    id Int @id @default(autoincrement())
-    userName String
-    userEmail String @unique
-    birthday DateTime
-    passwordHash String
-    isMentor Boolean @default(false)
-    mentorCode String? @unique
-    reportCount Int @default(0)
-    refreshToken String
-    targetLanguage String
-    menteeTranslations Translations[]
-    questions Question[]
-    comments Comment[]
-    reports Report[]
-    commentLikes CommentLike[]
+  id                 Int            @id @default(autoincrement())
+  userName           String
+  userEmail          String         @unique
+  birthday           DateTime
+  passwordHash       String
+  isMentor           Boolean        @default(false)
+  mentorCode         String?        @unique
+  reportCount        Int            @default(0)
+  refreshToken       String
+  targetLanguage     String
+
+  comments           Comment[]
+  commentLikes       CommentLike[]
+  questions          Question[]
+  reports            Report[]
+  menteeTranslations Translations[]
+  ocr_images Ocrimages[]
 }
 
-// 문제 번역
 model Translations {
-    id Int @id @default(autoincrement())
-    menteeId Int
-    mentee Users @relation(fields: [menteeId], references: [id])
-    originalText String[]
-    translatedText String[]
-    keyConcept String
-    summary String
-    solution String
-    createdAt DateTime @default(now())
+  id             Int      @id @default(autoincrement())
+  menteeId       Int
+  originalText   String[]
+  translatedText String[]
+  createdAt      DateTime @default(now())
+  keyConcept     String
+  solution       String
+  summary        String
+  mentee         Users    @relation(fields: [menteeId], references: [id])
 }
 
-// 카테고리
+model Ocrimages {
+  id Int @id @default(autoincrement())
+  userId Int
+  fileName String
+  fileUrl String
+  fileSize Int
+  fileType String
+  user Users @relation(fields: [userId], references: [id])
+}
+
+model Question {
+  id          Int          @id @default(autoincrement())
+  title       String
+  content     String
+  createdAt   DateTime     @default(now())
+  isDeleted   Boolean      @default(false)
+  isAnswered  Boolean      @default(false)
+  answerCount Int          @default(0)
+  category    Category
+  userId      Int
+  attachments Attachment[]
+  comments    Comment[]
+  user        Users        @relation(fields: [userId], references: [id])
+  reports     Report[]
+}
+
+model Attachment {
+  id         Int      @id @default(autoincrement())
+  url        String
+  questionId Int
+  question   Question @relation(fields: [questionId], references: [id])
+}
+
+model Comment {
+  id         Int           @id @default(autoincrement())
+  content    String
+  createdAt  DateTime      @default(now())
+  deleted    Boolean       @default(false)
+  questionId Int
+  userId     Int
+  parentId   Int?
+  parent     Comment?      @relation("CommentReplies", fields: [parentId], references: [id])
+  replies    Comment[]     @relation("CommentReplies")
+  question   Question      @relation(fields: [questionId], references: [id])
+  user       Users         @relation(fields: [userId], references: [id])
+  likes      CommentLike[]
+  reports    Report[]
+}
+
+model Report {
+  id         Int       @id @default(autoincrement())
+  reason     String
+  createdAt  DateTime  @default(now())
+  reporterId Int
+  questionId Int?
+  commentId  Int?
+  comment    Comment?  @relation(fields: [commentId], references: [id])
+  question   Question? @relation(fields: [questionId], references: [id])
+  reporter   Users     @relation(fields: [reporterId], references: [id])
+}
+
+model CommentLike {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  commentId Int?
+  comment   Comment? @relation(fields: [commentId], references: [id])
+  user      Users    @relation(fields: [userId], references: [id])
+
+  @@unique([userId, commentId])
+}
+
 enum Category {
   study
   free
 }
 
-// 신고 사유 선택
 enum ReportReason {
   offensive
   sexual
