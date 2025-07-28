@@ -258,14 +258,14 @@ export class OcrService {
             console.log('정제된 텍스트:', sanitizedProblem);
 
             const questionPrompt = `
-            You are a helpful assistant for elementary school students who need problem explanations translated into ko.
+            You are a helpful assistant for elementary school students who need problem explanations translated into ${targetLanguage}.
             Please describe the problem in a way that is easy to understand for elementary school students.
 
             Given the following problem:
             ${sanitizedProblem.join('\n')}
 
             Please provide:
-            1. A detailed explanation of the problem in ko (within 300 characters)
+            1. A detailed explanation of the problem in ${targetLanguage} (within 300 characters)
             2. Key concepts that are important for understanding this problem (express as a single word)
             3. A brief summary of the problem approach
 
@@ -276,7 +276,7 @@ export class OcrService {
                 "summary": "brief summary here"
             }
 
-            Make sure your response is valid JSON and the explanation is in ko.
+            Make sure your response is valid JSON and the explanation is in ${targetLanguage}.
         `;
 
             const messages: any[] = [
