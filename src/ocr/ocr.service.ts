@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from 'src/prisma/prisma.service';
 import axios from 'axios';
@@ -70,7 +70,11 @@ export class OcrService {
         const openAiApiKey = this.configService.get('OPEN_AI_API_KEY');
 
         if (!azureApiKey || !ocrEndPoint || !translateEndPoint || !openAiEndpoint || !openAiApiKey) {
-            throw new Error('API 키 또는 엔드포인트가 설정되지 않았습니다. 환경 변수를 확인해주세요.');
+            throw new BadRequestException({
+                message: ['API 키 또는 엔드포인트가 설정되지 않았습니다. 환경 변수를 확인해주세요.'],
+                error: 'BadRequest',
+                statusCode: 400,
+            });
         }
 
         if (files && files.length > 0) {
@@ -101,7 +105,11 @@ export class OcrService {
             }
         })
         if (!result) {
-            throw new NotFoundException('이미지를 찾을 수 없습니다.');
+            throw new NotFoundException({
+                message: ['이미지를 찾을 수 없습니다.'],
+                error: 'NotFound',
+                statusCode: 404,
+            });
         }
 
         const ocrOptions = {
@@ -129,6 +137,24 @@ export class OcrService {
             })
         }
 
+        const user = await this.prisma.users.findUnique({
+            where: {
+                id: userId,
+                isDeleted: false,
+            },
+            select: {
+                targetLanguage: true,
+            }
+        })
+
+        if (!user) {
+            throw new NotFoundException({
+                message: ['사용자를 찾을 수 없습니다.'],
+                error: 'NotFound',
+                statusCode: 404,
+            });
+        }
+
         const translateOptions = {
             method: 'POST',
             url: translateEndPoint + 'translate',
@@ -140,16 +166,7 @@ export class OcrService {
             params: {
                 'api-version': '3.0',
                 'from': 'ko',
-                'to':
-                    this.prisma.users.findUnique({
-                        where: {
-                            id: userId,
-                            isDeleted: false,
-                        },
-                        select: {
-                            targetLanguage: true,
-                        }
-                    }),
+                'to': user.targetLanguage,
             },
             data: ocrResults.map((text) => ({ text }))
         }
@@ -179,9 +196,9 @@ export class OcrService {
 
         return {
             message: 'OCR 요청 성공',
+            statusCode: 200,
             originalText: ocrResults,
             translatedText: translateResults,
-            statusCode: 200,
         }
     }
 
@@ -325,13 +342,17 @@ export class OcrService {
 
             return {
                 message: 'Solution 요청 성공',
+                statusCode: 200,
                 keyConcept: gptResponse.keyConcept,
                 solution: gptResponse.solution,
                 summary: gptResponse.summary,
-                statusCode: 200,
             }
         } catch (error) {
-            throw new Error(`OpenAI API 호출 실패: ${error.message}`);
+            throw new BadRequestException({
+                message: ['Solution 요청 실패'],
+                error: 'Error',
+                statusCode: 500,
+            });
         }
     }
 
