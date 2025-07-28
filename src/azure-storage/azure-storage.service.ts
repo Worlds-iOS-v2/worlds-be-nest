@@ -2,6 +2,7 @@ import { BlobServiceClient, ContainerClient } from '@azure/storage-blob';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
+import { Express } from 'express';
 
 @Injectable()
 export class AzureStorageService {

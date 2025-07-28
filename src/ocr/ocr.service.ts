@@ -4,6 +4,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import axios from 'axios';
 import { RequestOCRDto } from './dto/RequestOCTDto';
 import { AzureOpenAI } from 'openai';
+import { Express } from 'express';
 
 @Injectable()
 export class OcrService {

@@ -1,11 +1,12 @@
-import { BadRequestException, Body, Controller, Post, Request, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Post, Request, UseGuards, UseInterceptors } from '@nestjs/common';
 import { OcrService } from './ocr.service';
-import { ApiBody, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiBody, ApiConsumes, ApiHeader, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { RequestOCRDto } from './dto/RequestOCTDto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { Request as ExpressRequest } from 'express';
 import { AzureStorageInterceptor } from 'src/azure-storage/azure-storage.interceptor';
 import { FilesInterceptor } from '@nestjs/platform-express';
+import { Express } from 'express';
 
 @Controller('ocr')
 export class OcrController {
@@ -35,16 +36,33 @@ export class OcrController {
   )
   @ApiOperation({ summary: 'OCR 요청' })
   @ApiResponse({ status: 200, description: 'OCR 요청 성공' })
-  @ApiBody({ type: RequestOCRDto })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        files: {
+          type: 'array',
+          items: { type: 'string', format: 'binary' },
+          description: '업로드할 이미지 파일들 (최대 5개, 각 파일 최대 5MB)',
+        },
+      },
+      required: ['files']
+    }
+  })
   @UseGuards(JwtAuthGuard)
   async ocr(@Request() req: ExpressRequest) {
     const userId = (req.user as any).id;
     return this.ocrService.ocr(userId, req.files as Express.Multer.File[])
   }
 
-  @Post('solution')
+  @Get('solution')
   @ApiOperation({ summary: 'Solution 요청' })
   @ApiResponse({ status: 200, description: 'Solution 요청 성공' })
+  @ApiHeader({
+    name: 'Authorization',
+    description: '액세스 토큰 값 입력, EX) Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+  })
   @UseGuards(JwtAuthGuard)
   async solution(@Request() req: ExpressRequest) {
     const userId = (req.user as any).id;
