@@ -17,6 +17,7 @@ export class UserService {
         const result = await this.prisma.users.update({
             where: {
                 id: userId,
+                isDeleted: false,
             },
             data: {
                 refreshToken: token || '',
@@ -32,6 +33,7 @@ export class UserService {
         return await this.prisma.users.findUnique({
             where: {
                 id: userId,
+                isDeleted: false,
             },
             select: {
                 id: true,
@@ -47,6 +49,7 @@ export class UserService {
         return await this.prisma.users.findUnique({
             where: {
                 id: userId,
+                isDeleted: false,
             },
             select: {
                 id: true,
@@ -65,6 +68,7 @@ export class UserService {
         return await this.prisma.users.findUnique({
             where: {
                 userEmail: email,
+                isDeleted: false,
             },
             select: {
                 id: true,
@@ -81,6 +85,7 @@ export class UserService {
         return await this.prisma.users.findUnique({
             where: {
                 id: userId,
+                isDeleted: false,
             },
             select: {
                 id: true,
@@ -96,6 +101,7 @@ export class UserService {
         const user = await this.prisma.users.findUnique({
             where: {
                 userEmail: signinform.userEmail,
+                isDeleted: false,
             },
         });
 

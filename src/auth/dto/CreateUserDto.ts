@@ -1,6 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { Transform } from "class-transformer";
-import { IsString, IsNotEmpty, IsEmail, Matches, IsDate, IsBoolean, IsOptional, IsInt, MinLength } from "class-validator";
+import { IsString, IsNotEmpty, IsEmail, Matches, IsDate, IsBoolean, IsOptional, MinLength } from "class-validator";
 
 export class CreateUserDto {
     @IsString()
@@ -74,7 +74,7 @@ export class CreateUserDto {
     @IsNotEmpty({ message: '번역할 언어는 필수 입력 항목입니다.' })
     @ApiProperty({
         description: 'target language of the user : not null',
-        example: 'English',
+        example: 'en',
     })
     targetLanguage: string;
 }

@@ -9,6 +9,8 @@ import { JwtService } from '@nestjs/jwt';
 import { FindEmailDto } from './dto/FindEmailDto';
 import { UpdatePasswordDto } from './dto/UpdatePasswordDto';
 import { AuthUser } from 'src/types/auth-user.interface';
+import { WithdrawalReason } from 'src/common/enums/withdrawal-reason.enum';
+import { DeleteUserDto } from './dto/DeleteUserDto';
 
 @Injectable()
 export class AuthService {
@@ -25,8 +27,23 @@ export class AuthService {
         console.log('회원가입 시작');
         const trimEmail = signupform.userEmail.toLowerCase().trim();
 
-        // 이메일 중복 체크
-        await this.checkEmailUnique(trimEmail);
+        const existsUser = await this.prisma.users.findUnique({
+            where: {
+                userEmail: trimEmail,
+            }
+        })
+
+        if (existsUser) {
+            if (!existsUser.isDeleted) {
+                throw new BadRequestException({
+                    message: ['이미 존재하는 이메일입니다.'],
+                    error: 'BadRequest',
+                    statusCode: 400,
+                });
+            } else {
+                return await this.reactivateUser(existsUser.id, signupform);
+            }
+        }
 
         // 비밀번호 해싱
         const salt = parseInt(this.config.get('SALT_ROUNDS') || '10');
@@ -42,20 +59,24 @@ export class AuthService {
                 mentorCode: signupform.mentorCode,
                 targetLanguage: signupform.targetLanguage,
                 refreshToken: '',
+                isDeleted: false,
             },
         });
 
         console.log('회원가입 완료');
         return {
-            statusCode: 200,
             message: '회원가입 성공',
+            statusCode: 200,
         };
     }
 
     // 이메일 중복 확인
     async checkEmailUnique(email: string) {
         const user = await this.prisma.users.findUnique({
-            where: { userEmail: email },
+            where: { 
+                userEmail: email,
+                isDeleted: false 
+            },
         });
 
         if (user) {
@@ -67,8 +88,8 @@ export class AuthService {
         }
 
         return {
+            message: '사용 가능한 이메일입니다.',
             statusCode: 200,
-            message: '사용 가능한 이메일입니다.'
         }
     }
     
@@ -99,8 +120,8 @@ export class AuthService {
         await this.userService.updateRefreshToken(user.id, refreshToken);
 
         return {
-            statusCode: 200,
             message: '로그인 성공',
+            statusCode: 200,
             username: user.userName,
             access_token: accessToken,
             refresh_token: refreshToken,
@@ -112,6 +133,7 @@ export class AuthService {
         const user = await this.prisma.users.findFirst({
             where: {
                 userName: findemailform.userName,
+                isDeleted: false,
             },
             select: {
                 userEmail: true,
@@ -127,9 +149,9 @@ export class AuthService {
         }
 
         return {
-            userEmail: user.userEmail,
             message: '이메일 찾기 성공',
             statusCode: 200,
+            userEmail: user.userEmail,
         }
     }
 
@@ -167,7 +189,8 @@ export class AuthService {
 
         await this.prisma.users.update({
             where: {
-                id: userId
+                id: userId,
+                isDeleted: false,
             },
             data: {
                 passwordHash: hashedPassword,
@@ -175,8 +198,8 @@ export class AuthService {
         })
 
         return {
-            statusCode: 200,
             message: '비밀번호 변경 성공',
+            statusCode: 200,
         }
     }
 
@@ -231,8 +254,8 @@ export class AuthService {
             });
 
             return {
-                statusCode: 200,
                 message: '액세스 토큰 재발급 성공',
+                statusCode: 200,
                 access_token: newAccessToken,
             };
         } catch (error) {
@@ -266,8 +289,8 @@ export class AuthService {
         console.log('로그아웃 후 refresh token:', userAfter?.refreshToken);
         
         return {
-            statusCode: 200,
             message: '로그아웃 성공',
+            statusCode: 200,
         }
     }
 
@@ -284,8 +307,8 @@ export class AuthService {
         }
 
         return {
-            statusCode: 200,
             message: '사용자 정보 조회 성공',
+            statusCode: 200,
             userInfo: user,
         }
     }
@@ -314,5 +337,69 @@ export class AuthService {
 
         const { passwordHash: _, refreshToken: __, ...safeUser } = user;
         return safeUser as AuthUser;
+    }
+
+    // 회원 탈퇴 (soft-delete)
+    async deactivateUser(userId: number, deleteuserform: DeleteUserDto) {
+        const user = await this.prisma.users.findUnique({
+            where: {
+                id: userId,
+                isDeleted: false,
+            }
+        })
+
+        if (!user) {
+            throw new UnauthorizedException({
+                message: ['사용자를 찾을 수 없습니다.'],
+                error: 'Unauthorized',
+                statusCode: 401,
+            })
+        }
+
+        await this.prisma.users.update({
+            where: {
+                id: userId,
+                isDeleted: false,
+            },
+            data: {
+                isDeleted: true,
+                WithdrawalReason: deleteuserform.withdrawalReason,
+            }
+        })
+
+        return {
+            message: '회원탈퇴 성공',
+            statusCode: 200,
+            withdrawalReason: deleteuserform.withdrawalReason,
+        }
+    }
+
+    // 탈퇴 회원 재가입
+    async reactivateUser(userId: number, signupform: CreateUserDto) {
+        const salt = parseInt(this.config.get('SALT_ROUNDS') || '10');
+        const hashedPassword = await bcrypt.hash(signupform.password, salt);
+        const trimEmail = signupform.userEmail.toLowerCase().trim();
+
+        await this.prisma.users.update({
+            where: {
+                id: userId,
+            },
+            data: {
+                userEmail: trimEmail,
+                userName: signupform.userName,
+                birthday: signupform.userBirth,
+                passwordHash: hashedPassword,
+                isMentor: signupform.isMentor,
+                mentorCode: signupform.mentorCode,
+                targetLanguage: signupform.targetLanguage,
+                isDeleted: false,
+                refreshToken: '',
+            }
+        })
+
+        return {
+            message: '탈퇴 회원 재가입 성공',
+            statusCode: 200,
+        }
     }
 }

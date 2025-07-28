@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards, Request, Patch, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards, Request, Patch, Req, Delete } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from './dto/CreateUserDto';
 import { SignInDto } from './dto/SignInDto';
@@ -9,6 +9,8 @@ import { ApiBody, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/
 import { UpdatePasswordDto } from './dto/UpdatePasswordDto';
 import { FindEmailDto } from './dto/FindEmailDto';
 import { CheckEmailDto } from './dto/CheckEmailDto';
+import { WithdrawalReason } from 'src/common/enums/withdrawal-reason.enum';
+import { DeleteUserDto } from './dto/DeleteUserDto';
 
 @ApiTags('사용자')
 @Controller('auth')
@@ -116,4 +118,18 @@ export class AuthController {
     return this.authService.findEmail(findEmailDto);
   }
 
+  @Delete('delete-user')
+  @ApiOperation({ summary: '회원 탈퇴' })
+  @ApiResponse({ status: 200, description: '회원 탈퇴 성공' })
+  @ApiHeader({
+    name: 'Authorization',
+    description: '액세스 토큰 값 입력, EX) Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+    required: true
+  })
+  @ApiBody({ type: DeleteUserDto })
+  @UseGuards(JwtAuthGuard)
+  async deleteUser(@Request() req: ExpressRequest) {
+    const userId = (req.user as any).id;
+    return this.authService.deactivateUser(userId, req.body as DeleteUserDto);
+  }
 }

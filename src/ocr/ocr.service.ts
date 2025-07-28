@@ -140,15 +140,16 @@ export class OcrService {
             params: {
                 'api-version': '3.0',
                 'from': 'ko',
-                'to': 'en'
-                // this.prisma.users.findUnique({
-                //     where: {
-                //         id: userId,
-                //     },
-                //     select: {
-                //         targetLanguage: true,
-                //     }
-                // })
+                'to':
+                    this.prisma.users.findUnique({
+                        where: {
+                            id: userId,
+                            isDeleted: false,
+                        },
+                        select: {
+                            targetLanguage: true,
+                        }
+                    }),
             },
             data: ocrResults.map((text) => ({ text }))
         }
@@ -189,6 +190,7 @@ export class OcrService {
             const user = await this.prisma.users.findUnique({
                 where: {
                     id: userId,
+                    isDeleted: false,
                 },
                 select: {
                     targetLanguage: true
@@ -218,7 +220,7 @@ export class OcrService {
 
             // 민감한 단어들을 대체하는 함수
             const sanitizeText = (text: string[]) => {
-                return text.map(line => 
+                return text.map(line =>
                     line.replace(/제모/g, '모발 제거')
                         .replace(/hair removal/g, '모발 제거')
                         .replace(/removal/g, '제거')
