@@ -8,6 +8,7 @@ import { ReportDto } from './dto/report-question.dto';
 
 @Injectable()
 export class QuestionService {
+  [x: string]: any;
     constructor(private readonly prisma: PrismaService) {}
 
     //질문 생성
@@ -131,5 +132,35 @@ export class QuestionService {
       },
     });
   }
+
+  // 내 질문 조회
+  async getMyQuestions(userId: number): Promise<ListQuestionDto[]> {
+    const questions = await this.prisma.question.findMany({
+      where: {
+        isDeleted: false,
+        userId: userId,
+      },
+      include: {
+        comments: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return questions.map((q) => ({
+      id: q.id,
+      category: q.category as Category,
+      title: q.title,
+      content: q.content,
+      createdAt: q.createdAt,
+      isAnswered: q.comments.length > 0,
+      answerCount: q.comments.length,
+    }));
+  }
+
+
+
+
 }
 
