@@ -108,6 +108,17 @@ export class QuestionController {
     return await this.questionService.getQuestionList(category);
   }
 
+  // 내가 쓴 게시물 조회
+  @Get('my')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: '내가 쓴 질문 목록 조회', description: '로그인한 사용자가 작성한 질문들을 조회합니다.' })
+  @ApiResponse({ status: 200, type: [ListQuestionDto] })
+  async getMyQuestions(@Req() req: AuthenticatedRequest) {
+    const userId = req.user?.id;
+    if (!userId) throw new UnauthorizedException('로그인이 필요합니다.');
+    return await this.questionService.getMyQuestions(userId);
+  }
+
   // 질문 상세
   @Get(':id')
   @ApiOperation({ summary: '질문 상세 조회', description: '특정 질문의 상세 정보를 조회합니다.' })
@@ -142,4 +153,6 @@ export class QuestionController {
     if (!userId) throw new UnauthorizedException('로그인이 필요합니다.');
     return await this.questionService.reportQuestion(questionId, userId, reportDto);
   }
+  
+
 }
