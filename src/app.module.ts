@@ -22,6 +22,7 @@ import { TranslateModule } from './translate/translate.module';
     QuestionModule,
     CommentModule,
     CommentLikeModule,
+    TranslateModule,
     OcrModule,
     AzureStorageModule,
     TranslateModule,
