@@ -1,7 +1,10 @@
 import { Controller, Post, Body, UseGuards } from '@nestjs/common';
 import { TranslateService } from './translate.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('번역')
+@ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('translate')
 export class TranslateController {
