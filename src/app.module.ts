@@ -11,6 +11,7 @@ import { UserModule } from './user/user.module';
 import { OcrModule } from './ocr/ocr.module';
 import { AzureStorageModule } from './azure-storage/azure-storage.module';
 import { TranslateModule } from './translate/translate.module';
+import { ChatModule } from './chat/chat.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -26,6 +27,7 @@ import { TranslateModule } from './translate/translate.module';
     OcrModule,
     AzureStorageModule,
     TranslateModule,
+    ChatModule,
   ],
   controllers: [AppController],
   providers: [AppService],
