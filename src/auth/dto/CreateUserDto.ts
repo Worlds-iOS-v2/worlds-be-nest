@@ -18,7 +18,7 @@ export class CreateUserDto {
     @MinLength(8, { message: '비밀번호는 최소 8자 이상이어야 합니다.' })
     @ApiProperty({
         description: 'password of the user : not null',
-        example: 'securePassword123',
+        example: 'password123!',
     })
     @Matches(
       /^(?!^[a-zA-Z]+$)(?!^[0-9]+$)(?!^[^a-zA-Z0-9]+$)[a-zA-Z0-9!@#$%^&*()_+{}\[\]:;<>,.?~\\/-]{8,16}$/,
@@ -65,7 +65,7 @@ export class CreateUserDto {
       )
     @ApiProperty({
         description: 'allowed mentor code : optional',
-        example: 'H23L4J',
+        example: 'H23E23',
         required: false,
     })
     mentorCode?: string;

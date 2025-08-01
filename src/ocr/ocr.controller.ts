@@ -1,6 +1,6 @@
 import { BadRequestException, Body, Controller, Get, Post, Request, UseGuards, UseInterceptors } from '@nestjs/common';
 import { OcrService } from './ocr.service';
-import { ApiBody, ApiConsumes, ApiHeader, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { RequestOCRDto } from './dto/RequestOCTDto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { Request as ExpressRequest } from 'express';
@@ -9,6 +9,8 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import { Express } from 'express';
 
 @Controller('ocr')
+@ApiTags('문제 분석 및 요약')
+@ApiBearerAuth()
 export class OcrController {
   constructor(private readonly ocrService: OcrService) {}
   
@@ -59,10 +61,6 @@ export class OcrController {
   @Get('solution')
   @ApiOperation({ summary: 'Solution 요청' })
   @ApiResponse({ status: 200, description: 'Solution 요청 성공' })
-  @ApiHeader({
-    name: 'Authorization',
-    description: '액세스 토큰 값 입력, EX) Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-  })
   @UseGuards(JwtAuthGuard)
   async solution(@Request() req: ExpressRequest) {
     const userId = (req.user as any).id;
