@@ -5,7 +5,7 @@ import { SignInDto } from './dto/SignInDto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { UserService } from 'src/user/user.service';
 import { Request as ExpressRequest } from 'express';
-import { ApiBody, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { UpdatePasswordDto } from './dto/UpdatePasswordDto';
 import { FindEmailDto } from './dto/FindEmailDto';
 import { CheckEmailDto } from './dto/CheckEmailDto';
@@ -14,6 +14,7 @@ import { DeleteUserDto } from './dto/DeleteUserDto';
 
 @ApiTags('사용자')
 @Controller('auth')
+@ApiBearerAuth()
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
@@ -70,11 +71,6 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: '로그아웃' })
-  @ApiHeader({
-    name: 'Authorization',
-    description: '액세스 토큰 값 입력, EX) Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-    required: true
-  })
   @ApiResponse({ status: 200, description: '로그아웃 성공' })
   async logout(@Request() req: ExpressRequest) {
     const userId = (req.user as any).id;
@@ -85,11 +81,6 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('userinfo')
   @ApiOperation({ summary: '사용자 정보 조회' })
-  @ApiHeader({
-    name: 'Authorization',
-    description: '액세스 토큰 값 입력, EX) Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-    required: true
-  })
   @ApiResponse({ status: 200, description: '사용자 정보 조회 성공' })
   async getUserInfo(@Request() req: ExpressRequest) {
     const userId = (req.user as any).id;
@@ -99,10 +90,6 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Patch('change-password')
   @ApiOperation({ summary: '비밀번호 변경' })
-  @ApiHeader({
-    name: 'Authorization',
-    description: '액세스 토큰 값 입력, EX) Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-  })
   @ApiBody({ type: UpdatePasswordDto })
   @ApiResponse({ status: 200, description: '비밀번호 변경 성공' })
   async changePassword(@Request() req: ExpressRequest) {
@@ -121,11 +108,6 @@ export class AuthController {
   @Delete('delete-user')
   @ApiOperation({ summary: '회원 탈퇴' })
   @ApiResponse({ status: 200, description: '회원 탈퇴 성공' })
-  @ApiHeader({
-    name: 'Authorization',
-    description: '액세스 토큰 값 입력, EX) Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-    required: true
-  })
   @ApiBody({ type: DeleteUserDto })
   @UseGuards(JwtAuthGuard)
   async deleteUser(@Request() req: ExpressRequest) {
