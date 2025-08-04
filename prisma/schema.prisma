@@ -28,6 +28,13 @@ model Users {
   reports            Report[]
   menteeTranslations Translations[]
   ocr_images Ocrimages[]
+
+  // 내가 userA 또는 userB인 채팅방들
+  chatRoomsAsUserA ChatRoom[] @relation("ChatRoomUserA")
+  chatRoomsAsUserB ChatRoom[] @relation("ChatRoomUserB")
+
+  // 내가 보낸 메시지들
+  messagesSent Message[] @relation("MessageSender")
 }
 
 // 탈퇴 사유
@@ -146,4 +153,32 @@ model CommentLike {
   comment Comment? @relation(fields: [commentId], references: [id])
 
   @@unique([userId, commentId])
+}
+
+//채팅
+// 사용자 간 채팅
+model ChatRoom {
+  id         Int      @id @default(autoincrement())
+  userAId    Int
+  userBId    Int
+  createdAt  DateTime @default(now())
+
+  userA      Users    @relation("ChatRoomUserA", fields: [userAId], references: [id])
+  userB      Users    @relation("ChatRoomUserB", fields: [userBId], references: [id])
+  messages   Message[]
+
+  @@unique([userAId, userBId])
+}
+
+// 채팅 메시지 기록
+model Message {
+  id         Int      @id @default(autoincrement())
+  roomId     Int
+  senderId   Int
+  content    String
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  room       ChatRoom @relation(fields: [roomId], references: [id])
+  sender     Users    @relation("MessageSender", fields: [senderId], references: [id])
 }
