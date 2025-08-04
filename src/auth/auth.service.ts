@@ -9,7 +9,6 @@ import { JwtService } from '@nestjs/jwt';
 import { FindEmailDto } from './dto/FindEmailDto';
 import { UpdatePasswordDto } from './dto/UpdatePasswordDto';
 import { AuthUser } from 'src/types/auth-user.interface';
-import { WithdrawalReason } from 'src/common/enums/withdrawal-reason.enum';
 import { DeleteUserDto } from './dto/DeleteUserDto';
 
 @Injectable()

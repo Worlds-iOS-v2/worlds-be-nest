@@ -134,7 +134,9 @@ export class QuestionService {
   }
 
   // 내 질문 조회
-  async getMyQuestions(userId: number): Promise<ListQuestionDto[]> {
+  // async getMyQuestions(userId: number): Promise<ListQuestionDto[]> {
+  
+  async getMyQuestions(userId: number): Promise<Omit<ListQuestionDto, 'user'>[]> {
     const questions = await this.prisma.question.findMany({
       where: {
         isDeleted: false,
