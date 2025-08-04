@@ -4,11 +4,13 @@ import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { HttpExceptionFilter } from './common/interceptor/http-exception.filter';
 import { ResponseInterceptor } from './common/interceptor/response.interceptor';
+import { IpCheckMiddleware } from './common/middleware/ip-check.middleware';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.useGlobalFilters(new HttpExceptionFilter());
   app.useGlobalInterceptors(new ResponseInterceptor());
+  app.use(IpCheckMiddleware);
   app.enableCors();
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }),
