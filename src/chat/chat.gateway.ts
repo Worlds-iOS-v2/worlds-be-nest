@@ -8,6 +8,7 @@ import {
 } from '@nestjs/websockets';
 import { Socket } from 'socket.io';
 import { ChatService } from './chat.service';
+import { CreateMessageDto } from './dto/create-message.dto';
 
 @WebSocketGateway({
   cors: {
@@ -30,26 +31,25 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // 클라이언트가 'join_room' 이벤트 보낼 때 실행
   @SubscribeMessage('join_room')
   handleJoinRoom(
-    @MessageBody() roomId: string,
+    @MessageBody() data: { roomId: number },
     @ConnectedSocket() client: Socket,
   ) {
-    client.join(roomId); // 소켓을 해당 room에 join 시킴
-    console.log(`Client ${client.id} joined room ${roomId}`);
+    client.join(data.roomId.toString()); // 소켓을 해당 room에 join 시킴
+    console.log(`Client ${client.id} joined room ${data.roomId}`);
   }
 
   // 클라이언트가 'send_message' 이벤트를 보낼 때 실행됨
   @SubscribeMessage('send_message')
   async handleMessage(
-    @MessageBody()
-    data: { roomId: string; senderId: string; content: string },
+    @MessageBody() data: CreateMessageDto,
     @ConnectedSocket() client: Socket,
   ) {
     console.log('Message received:', data);
 
-    // 상대방에게 메시지 전송
-    client.broadcast.to(data.roomId).emit('receive_message', data);
+    // 1. 메세지 저장
+    const savedMessage = await this.chatService.saveMessage(data);
 
-    // 나중에 여기에 DB 저장 로직 들어감
-    // await this.chatService.saveMessage(data);
+    // 2. 상대방한테 메시지 전송
+    client.broadcast.to(data.roomId.toString()).emit('receive_message', savedMessage);
   }
 }
