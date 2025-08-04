@@ -42,4 +42,14 @@ export class ChatService {
             },
         });
     }
+
+    // 채팅방 메시지 상세 조회(이전 대화 내용)
+    async getMessagesDetail(roomId: number) {
+    return this.prisma.message.findMany({
+        where: { roomId },
+        orderBy: { createdAt: 'asc' },
+    });
+}
+
+
 }
