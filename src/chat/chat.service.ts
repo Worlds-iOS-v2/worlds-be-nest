@@ -19,6 +19,27 @@ export class ChatService {
         });
     }
 
-
-
+    // 채팅방 목록 조회
+    async getUserChatRooms(userId: number) {
+        return this.prisma.chatRoom.findMany({
+            where: {
+                OR: [
+                    { userAId: userId },
+                    { userBId: userId },
+                ],
+            },
+            include: {
+                userA: {
+                    select: { id: true, userName: true },
+                },
+                userB: {
+                    select: { id: true, userName: true },
+                },
+                messages: {
+                    orderBy: { createdAt: 'desc' },
+                    take: 1,
+                },
+            },
+        });
+    }
 }
