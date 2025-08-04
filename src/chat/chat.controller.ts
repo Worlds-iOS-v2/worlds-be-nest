@@ -1,4 +1,4 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { ApiTags, ApiParam } from '@nestjs/swagger';
 import { ParseIntPipe } from '@nestjs/common';
@@ -19,9 +19,11 @@ export class ChatController {
   @Get('messages/:roomId')
   @ApiParam({ name: 'roomId', type: Number })
   async getRoomMessages(
-  @Param('roomId', ParseIntPipe) roomId: number,
+    @Param('roomId', ParseIntPipe) roomId: number,
+    @Query('take') take?: number,
+    @Query('skip') skip?: number,
   ) {
-  return this.chatService.getMessagesDetail(roomId);
+    return this.chatService.getMessagesDetail(roomId, take, skip);
   }
 
 
