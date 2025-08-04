@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from 'src/prisma/prisma.service';
 import axios from 'axios';
@@ -27,42 +27,6 @@ export class OcrService {
         });
     }
 
-    async uploadImage(
-        userId: number,
-        files: Express.Multer.File[]
-    ) {
-        if (files && files.length > 0) {
-            const attachmentPromise = files.map(async (file) => {
-                return this.prisma.ocrimages.create({
-                    data: {
-                        userId: userId,
-                        fileName: file.originalname,
-                        fileUrl: file['url'],
-                        fileSize: file.size,
-                        fileType: file.mimetype,
-                    }
-                })
-            })
-            await Promise.all(attachmentPromise);
-        }
-
-        const result = await this.prisma.ocrimages.findFirst({
-            where: {
-                userId: userId
-            },
-            select: {
-                id: true,
-                fileUrl: true
-            }
-        })
-
-        return {
-            message: '이미지 업로드 성공',
-            statusCode: 200,
-            data: result
-        }
-    }
-
     async ocr(userId: number, files: Express.Multer.File[]) {
         const azureApiKey = this.configService.get('AI_SERVICES_API_KEY');
         const ocrEndPoint = this.configService.get('OCR_ENDPOINT');
@@ -78,9 +42,11 @@ export class OcrService {
             });
         }
 
+        let ocrResults: string[] = [];
+
         if (files && files.length > 0) {
             const attachmentPromise = files.map(async (file) => {
-                return this.prisma.ocrimages.create({
+                await this.prisma.ocrimages.create({
                     data: {
                         userId: userId,
                         fileName: file.originalname,
@@ -89,53 +55,52 @@ export class OcrService {
                         fileType: file.mimetype,
                     }
                 })
+
+                const ocrOptions = {
+                    method: 'POST',
+                    url: ocrEndPoint + '/vision/v3.2/ocr',
+                    headers: {
+                        'Ocp-Apim-Subscription-Key': azureApiKey,
+                        'Content-Type': 'application/json'
+                    },
+                    data: {
+                        url: file['url']
+                    }
+                }
+
+                if (!ocrOptions.data.url) {
+                    throw new BadRequestException({
+                        message: ['이미지 파일이 업로드되지 않았습니다. 다시 시도해주세요.'],
+                        error: 'BadRequest',
+                        statusCode: 400,
+                    });
+                }
+
+                const ocrResponse = await axios(ocrOptions);
+                const regions = ocrResponse.data.regions;
+                if (regions.length > 0) {
+                    regions.forEach((region) => {
+                        region.lines.forEach((line) => {
+                            const lineText = line.words.map((word) => word.text).join(' ');
+                            ocrResults.push(lineText);
+                            console.log(lineText);
+                        })
+                    })
+                } else {
+                    throw new BadRequestException({
+                        message: ['OCR 요청 실패'],
+                        error: 'BadRequest',
+                        statusCode: 400,
+                    })
+                }
             })
             await Promise.all(attachmentPromise);
-        }
-
-        const result = await this.prisma.ocrimages.findFirst({
-            where: {
-                userId: userId
-            },
-            orderBy: {
-                id: 'desc'
-            },
-            select: {
-                id: true,
-                fileUrl: true
-            }
-        })
-        if (!result) {
-            throw new NotFoundException({
-                message: ['이미지를 찾을 수 없습니다.'],
-                error: 'NotFound',
-                statusCode: 404,
+        } else {
+            throw new BadRequestException({
+                message: ['이미지 파일이 업로드되지 않았습니다. 다시 시도해주세요.'],
+                error: 'BadRequest',
+                statusCode: 400,
             });
-        }
-
-        const ocrOptions = {
-            method: 'POST',
-            url: ocrEndPoint + '/vision/v3.2/ocr',
-            headers: {
-                'Ocp-Apim-Subscription-Key': azureApiKey,
-                'Content-Type': 'application/json'
-            },
-            data: {
-                url: result.fileUrl
-            }
-        }
-
-        const ocrResponse = await axios(ocrOptions);
-        const regions = ocrResponse.data.regions;
-        let ocrResults: string[] = [];
-        if (regions.length > 0) {
-            regions.forEach((region) => {
-                region.lines.forEach((line) => {
-                    const lineText = line.words.map((word) => word.text).join(' ');
-                    ocrResults.push(lineText);
-                    console.log(lineText);
-                })
-            })
         }
 
         const user = await this.prisma.users.findUnique({
@@ -215,7 +180,11 @@ export class OcrService {
                 }
             })
             if (!user) {
-                throw new NotFoundException('사용자를 찾을 수 없습니다.');
+                throw new UnauthorizedException({
+                    message: ['사용자를 찾을 수 없습니다.'],
+                    error: 'Unauthorized',
+                    statusCode: 401,
+                });
             }
 
             const requestUser = await this.prisma.translations.findFirst({
@@ -230,7 +199,11 @@ export class OcrService {
                 }
             })
             if (!requestUser) {
-                throw new NotFoundException('문제를 찾을 수 없습니다.');
+                throw new NotFoundException({
+                    message: ['문제를 찾을 수 없습니다.'],
+                    error: 'NotFound',
+                    statusCode: 404,
+                });
             }
 
             const targetLanguage = user.targetLanguage;
@@ -250,6 +223,9 @@ export class OcrService {
                         .replace(/반대/g, '거부')
                         .replace(/revolution/g, '개혁')
                         .replace(/independence/g, '자립')
+                        .replace(/반일/g, '대외 관계')
+                        .replace(/민족/g, '국민')
+                        .replace(/통합/g, '연합')
                 );
             };
 
@@ -264,7 +240,7 @@ export class OcrService {
 
             Given the following problem:
             ${sanitizedProblem.join('\n')}
-
+            
             Please provide:
             1. A detailed explanation of the problem in ${targetLanguage} (within 300 characters)
             2. Key concepts that are important for understanding this problem (express as a single word)
@@ -305,7 +281,11 @@ export class OcrService {
             console.log('GPT 응답 타입:', typeof gptContent);
 
             if (!gptContent) {
-                throw new Error('GPT 응답이 비어있습니다.');
+                throw new BadRequestException({
+                    message: ['GPT 응답이 비어있습니다.'],
+                    error: 'BadRequest',
+                    statusCode: 400,
+                });
             }
 
             let gptResponse;
@@ -314,7 +294,11 @@ export class OcrService {
             } catch (error) {
                 console.error('JSON 파싱 에러:', error);
                 console.error('파싱하려던 내용:', gptContent);
-                throw new Error('GPT 응답을 JSON으로 파싱할 수 없습니다.');
+                throw new BadRequestException({
+                    message: ['GPT 응답을 JSON으로 파싱할 수 없습니다.'],
+                    error: 'BadRequest',
+                    statusCode: 400,
+                });
             }
 
             const translationRecord = await this.prisma.translations.findFirst({
@@ -327,7 +311,11 @@ export class OcrService {
             });
 
             if (!translationRecord) {
-                throw new NotFoundException('번역 레코드를 찾을 수 없습니다.');
+                throw new NotFoundException({
+                    message: ['번역 레코드를 찾을 수 없습니다.'],
+                    error: 'NotFound',
+                    statusCode: 404,
+                });
             }
 
             await this.prisma.translations.update({
@@ -351,8 +339,8 @@ export class OcrService {
         } catch (error) {
             throw new BadRequestException({
                 message: ['Solution 요청 실패'],
-                error: 'Error',
-                statusCode: 500,
+                error: 'BadRequest',
+                statusCode: 400,
             });
         }
     }
