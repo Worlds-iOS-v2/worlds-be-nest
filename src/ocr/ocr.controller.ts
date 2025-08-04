@@ -1,15 +1,18 @@
-import { BadRequestException, Body, Controller, Get, Post, Request, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Post, Request, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common';
 import { OcrService } from './ocr.service';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { RequestOCRDto } from './dto/RequestOCTDto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { Request as ExpressRequest } from 'express';
 import { AzureStorageInterceptor } from 'src/azure-storage/azure-storage.interceptor';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { Express } from 'express';
+import { ResponseInterceptor } from 'src/common/interceptor/response.interceptor';
+import { HttpExceptionFilter } from 'src/common/interceptor/http-exception.filter';
 
 @Controller('ocr')
 @ApiTags('문제 분석 및 요약')
+@UseInterceptors(ResponseInterceptor)
+@UseFilters(HttpExceptionFilter)
 @ApiBearerAuth()
 export class OcrController {
   constructor(private readonly ocrService: OcrService) {}
