@@ -112,11 +112,43 @@ export class QuestionController {
   @Get('my')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '내가 쓴 질문 목록 조회', description: '로그인한 사용자가 작성한 질문들을 조회합니다.' })
-  @ApiResponse({ status: 200, type: [ListQuestionDto] })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: {
+        user: {
+          id: 1,
+          username: 'user123',
+          email: 'user@example.com'
+        },
+        questions: [
+          {
+            id: 1,
+            title: '질문 제목',
+            content: '질문 내용',
+            category: 'study',
+            createdAt: '2024-08-04T00:00:00Z',
+            isAnswered: true,
+            answerCount: 3
+          }
+        ]
+      }
+    }
+  })
   async getMyQuestions(@Req() req: AuthenticatedRequest) {
-    const userId = req.user?.id;
-    if (!userId) throw new UnauthorizedException('로그인이 필요합니다.');
-    return await this.questionService.getMyQuestions(userId);
+    const user = req.user;
+    if (!user?.id) throw new UnauthorizedException('로그인이 필요합니다.');
+
+    const questions = await this.questionService.getMyQuestions(user.id);
+
+    return {
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+      },
+      questions,
+    };
   }
 
   // 질문 상세
