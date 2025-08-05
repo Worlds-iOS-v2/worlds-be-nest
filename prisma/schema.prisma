@@ -112,7 +112,6 @@ model Attachment {
   question    Question   @relation(fields: [questionId], references: [id])
 }
 
-
 // 답변
 model Comment {
   id          Int      @id @default(autoincrement())
