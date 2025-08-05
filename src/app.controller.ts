@@ -13,7 +13,7 @@ export class AppController {
   // status check
   @Get('health')
   healthCheck(): { status: string } {
-    
+    console.log('health check');
     return { status: 'ok' };
   }
 }
