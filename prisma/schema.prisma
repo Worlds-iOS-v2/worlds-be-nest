@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,6 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// 사용자
 model Users {
   id                 Int            @id @default(autoincrement())
   userName           String
@@ -24,6 +19,8 @@ model Users {
   reportCount        Int            @default(0)
   refreshToken       String
   targetLanguage     String
+  isDeleted Boolean?
+  WithdrawalReason WithdrawalReason?
 
   comments           Comment[]
   commentLikes       CommentLike[]
@@ -31,8 +28,25 @@ model Users {
   reports            Report[]
   menteeTranslations Translations[]
   ocr_images Ocrimages[]
+
+  // 내가 userA 또는 userB인 채팅방들
+  chatRoomsAsUserA ChatRoom[] @relation("ChatRoomUserA")
+  chatRoomsAsUserB ChatRoom[] @relation("ChatRoomUserB")
+
+  // 내가 보낸 메시지들
+  messagesSent Message[] @relation("MessageSender")
 }
 
+// 탈퇴 사유
+enum WithdrawalReason {
+  personal
+  privacy
+  low_usage
+  service_issue
+  other
+}
+
+// 번역 및 분석
 model Translations {
   id             Int      @id @default(autoincrement())
   menteeId       Int
@@ -45,6 +59,7 @@ model Translations {
   mentee         Users    @relation(fields: [menteeId], references: [id])
 }
 
+// 이미지 업로드
 model Ocrimages {
   id Int @id @default(autoincrement())
   userId Int
@@ -97,7 +112,6 @@ model Attachment {
   question    Question   @relation(fields: [questionId], references: [id])
 }
 
-
 // 답변
 model Comment {
   id          Int      @id @default(autoincrement())
@@ -119,7 +133,7 @@ model Comment {
 model Report {
   id Int @id @default(autoincrement())
   reason ReportReason
-  // etcReason String? // 기타 사유 입력 시
+  etcReason String?
   createdAt DateTime @default(now())
   reporterId Int
   reporter Users @relation(fields: [reporterId], references: [id])
@@ -138,4 +152,61 @@ model CommentLike {
   comment Comment? @relation(fields: [commentId], references: [id])
 
   @@unique([userId, commentId])
+}
+
+//채팅
+// 사용자 간 채팅
+model ChatRoom {
+  id         Int      @id @default(autoincrement())
+  userAId    Int
+  userBId    Int
+  createdAt  DateTime @default(now())
+
+  userA      Users    @relation("ChatRoomUserA", fields: [userAId], references: [id])
+  userB      Users    @relation("ChatRoomUserB", fields: [userBId], references: [id])
+  messages   Message[]
+
+  @@unique([userAId, userBId])
+}
+
+// 채팅 메시지 기록
+model Message {
+  id         Int      @id @default(autoincrement())
+  roomId     Int
+  senderId   Int
+  content    String
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  room       ChatRoom @relation(fields: [roomId], references: [id])
+  sender     Users    @relation("MessageSender", fields: [senderId], references: [id])
+}
+
+// 정부 프로그램 데이터
+model GovPro {
+  id Int @id @default(autoincrement())
+  borough String
+  title String
+  image String
+  applicationPeriod String
+  programPeriod String
+  location String
+  target String
+  personnel String
+  programDetail String
+  url String
+  createAt DateTime @default(now())
+}
+
+// 한국어 프로그램 데이터
+model KoPro {
+  id Int @id @default(autoincrement())
+  borough String
+  title String
+  image String
+  applicationPeriod String
+  programPeriod String
+  location String
+  url String
+  createdAt DateTime @default(now())
 }
