@@ -6,9 +6,11 @@ import {
 import * as cheerio from 'cheerio';
 import * as puppeteer from 'puppeteer';
 import { format } from 'date-fns';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class CrawlingService {
+    constructor(private readonly prismaService: PrismaService) { }
     private headers = {
         'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
@@ -16,6 +18,7 @@ export class CrawlingService {
 
     async crawlerKoreanProgram(): Promise<any> {
         console.log('크롤링 시작');
+        const koData: any[] = [];
         const URL = 'https://mcfamily.or.kr/programs/korean';
 
         const browser = await puppeteer.launch({
@@ -127,9 +130,11 @@ export class CrawlingService {
                         location: location,
                         url: href,
                     }
-                    console.log(data)
+
+                    koData.push(data);
                 }
             }
+            return koData;
         } catch (error) {
             throw new InternalServerErrorException({
                 message: [
@@ -146,33 +151,33 @@ export class CrawlingService {
     // 최근 20개 불러오기
     async crawlerGovernmentProgram(): Promise<any> {
         console.log('크롤링 시작');
-        for (let i = 1; i < 5; i++) {
-            const now = new Date();
-            const today = format(now, 'yyyy-MM-dd');
-            const endDate = format(
-                new Date(now.getFullYear(), now.getMonth() + 3, 0),
-                'yyyy-MM-dd',
-            );
-            let pageCount = i;
+        const govData: any[] = [];
 
-            const URL = `https://www.familynet.or.kr/web/lay1/program/S1T304C450/recruitReceipt/list.do?area=&area_detail=&program_end_date=${endDate}&application_type=on&_csrf=7c9109c8-246a-4c1d-b26d-6311100e67e8&reception_end_date=${endDate}&program_date_select=program_term&multicultural_type=language_development&cat=&program_start_date=${today}&reception_date_select=reception_term&keyword=%EB%8B%A4%EB%AC%B8%ED%99%94&reception_start_date=${today}&status=ongoing&rows=5&cpage=${pageCount}`;
-            console.log(URL);
+        const browser = await puppeteer.launch({
+            headless: process.env.NODE_ENV === 'production',
+            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas',
+                '--no-first-run',
+                '--no-zygote',
+                '--disable-gpu',
+            ],
+        });
+        try {
+            for (let i = 1; i < 5; i++) {
+                const now = new Date();
+                const today = format(now, 'yyyy-MM-dd');
+                const endDate = format(
+                    new Date(now.getFullYear(), now.getMonth() + 3, 0),
+                    'yyyy-MM-dd',
+                );
+                let pageCount = i;
 
-            const browser = await puppeteer.launch({
-                headless: process.env.NODE_ENV === 'production',
-                executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-                args: [
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                    '--disable-dev-shm-usage',
-                    '--disable-accelerated-2d-canvas',
-                    '--no-first-run',
-                    '--no-zygote',
-                    '--disable-gpu',
-                ],
-            });
-
-            try {
+                const URL = `https://www.familynet.or.kr/web/lay1/program/S1T304C450/recruitReceipt/list.do?area=&area_detail=&program_end_date=${endDate}&application_type=on&_csrf=7c9109c8-246a-4c1d-b26d-6311100e67e8&reception_end_date=${endDate}&program_date_select=program_term&multicultural_type=language_development&cat=&program_start_date=${today}&reception_date_select=reception_term&keyword=%EB%8B%A4%EB%AC%B8%ED%99%94&reception_start_date=${today}&status=ongoing&rows=5&cpage=${pageCount}`;
+                console.log(URL);
                 const page = await browser.newPage();
 
                 await page.goto(URL, { waitUntil: 'networkidle0' });
@@ -251,23 +256,55 @@ export class CrawlingService {
                             programDetail: programDetail,
                             location: location,
                         }
-
-                        console.log(data)
+                        govData.push(data);
                     }
                 }
-            } catch (error) {
-                console.log(error)
-
-                throw new InternalServerErrorException({
-                    message: [
-                        '정부 프로그램 정보를 불러오는 데에 실패했습니다. 다시 시도해주세요.',
-                    ],
-                    error: 'CrawlingError: ' + error.message,
-                    statusCode: 500,
-                });
-            } finally {
-                await browser.close();
             }
+        } catch (error) {
+            throw new InternalServerErrorException({
+                message: ['정부 프로그램 정보를 불러오는 데에 실패했습니다. 다시 시도해주세요.'],
+                error: 'CrawlingError: ' + error.message,
+                statusCode: 500,
+            })
+        } finally {
+            await browser.close();
+        }
+        return govData
+    }
+
+    async getCrawlData() {
+        try {
+            // 원래는 이렇게 데이터베이스의 정보를 가져와야 함
+            // const governmentData = await this.prismaService.govPro.findMany({
+            //     orderBy: {
+            //         id: 'desc',
+            //     },
+            //     take: 20,
+            // })
+
+            // const koreanData = await this.prismaService.koPro.findMany({
+            //     orderBy: {
+            //         id: 'desc',
+            //     },
+            //     take: 16,
+            // })
+
+            // 일단 데이터베이스에 저장된 값이 없어서 직접 요청하는 것으로 대체
+            const governmentData = await this.crawlerGovernmentProgram();
+            const koreanData = await this.crawlerKoreanProgram();
+
+            return {
+                message: '크롤링 데이터 조회 성공',
+                statusCode: 200,
+                governmentData,
+                koreanData,
+            }
+        } catch (error) {
+            throw new BadRequestException({
+                message: ['크롤링 데이터 조회에 실패했습니다. 다시 시도해주세요.'],
+                error: 'CrawlingError: ' + error.message,
+                statusCode: 400,
+            })
         }
     }
 }

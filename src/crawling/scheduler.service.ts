@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CrawlingService } from './crawling.service';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { Cron } from '@nestjs/schedule';
 
 @Injectable()
 export class SchedulerService {
@@ -10,7 +10,7 @@ export class SchedulerService {
     private readonly prismaService: PrismaService,
   ) {}
 
-  @Cron('0 9 */2 * *')
+  @Cron('0 9 * * *')
   async scheduleCrawling() {
     const today = new Date();
     console.log('scheduleCrawling', today);
@@ -23,6 +23,11 @@ export class SchedulerService {
     console.log(formattedDate, governmentData, koreanData);
 
     // 데이터 저장 로직을 추가해주세요
-    
+    await this.prismaService.govPro.createMany({
+      data: governmentData,
+    });
+    await this.prismaService.koPro.createMany({
+      data: koreanData,
+    });
   }
 }
