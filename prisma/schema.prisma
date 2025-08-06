@@ -181,3 +181,32 @@ model Message {
   room       ChatRoom @relation(fields: [roomId], references: [id])
   sender     Users    @relation("MessageSender", fields: [senderId], references: [id])
 }
+
+// 정부 프로그램 데이터
+model GovPro {
+  id Int @id @default(autoincrement())
+  borough String
+  title String
+  image String
+  applicationPeriod String
+  programPeriod String
+  location String
+  target String
+  personnel String
+  programDetail String
+  url String
+  createAt DateTime @default(now())
+}
+
+// 한국어 프로그램 데이터
+model KoPro {
+  id Int @id @default(autoincrement())
+  borough String
+  title String
+  image String
+  applicationPeriod String
+  programPeriod String
+  location String
+  url String
+  createdAt DateTime @default(now())
+}
