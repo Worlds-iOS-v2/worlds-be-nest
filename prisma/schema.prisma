@@ -195,7 +195,7 @@ model GovPro {
   personnel String
   programDetail String
   url String
-  createAt DateTime @default(now())
+  createdAt DateTime @default(now())
 }
 
 // 한국어 프로그램 데이터

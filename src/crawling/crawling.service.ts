@@ -22,7 +22,7 @@ export class CrawlingService {
         const URL = 'https://mcfamily.or.kr/programs/korean';
 
         const browser = await puppeteer.launch({
-            headless: process.env.NODE_ENV === 'production',
+            headless: true,
             executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
             args: [
                 '--no-sandbox',
@@ -38,7 +38,7 @@ export class CrawlingService {
         try {
             const page = await browser.newPage();
 
-            await page.goto(URL, { waitUntil: 'networkidle0' });
+            await page.goto(URL, { waitUntil: 'networkidle0', timeout: 20000 });
 
             page.on('console', (msg) => console.log('Browser Console:', msg.text()));
 
@@ -136,6 +136,7 @@ export class CrawlingService {
             }
             return koData;
         } catch (error) {
+            console.error('크롤링 에러 상세: ', error)
             throw new InternalServerErrorException({
                 message: [
                     '한국어 프로그램 정보를 불러오는 데 실패했습니다. 다시 시도해주세요.',
@@ -154,7 +155,7 @@ export class CrawlingService {
         const govData: any[] = [];
 
         const browser = await puppeteer.launch({
-            headless: process.env.NODE_ENV === 'production',
+            headless: true,
             executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
             args: [
                 '--no-sandbox',
@@ -249,8 +250,8 @@ export class CrawlingService {
                             title: titleText,
                             image: image,
                             url: href,
-                            programPeriod: programPeriod,
                             applicationPeriod: applicationPeriod,
+                            programPeriod: programPeriod,
                             target: target,
                             personnel: personnel,
                             programDetail: programDetail,
@@ -261,6 +262,7 @@ export class CrawlingService {
                 }
             }
         } catch (error) {
+            console.error('크롤링 에러 상세: ', error)
             throw new InternalServerErrorException({
                 message: ['정부 프로그램 정보를 불러오는 데에 실패했습니다. 다시 시도해주세요.'],
                 error: 'CrawlingError: ' + error.message,
@@ -275,23 +277,23 @@ export class CrawlingService {
     async getCrawlData() {
         try {
             // 원래는 이렇게 데이터베이스의 정보를 가져와야 함
-            // const governmentData = await this.prismaService.govPro.findMany({
-            //     orderBy: {
-            //         id: 'desc',
-            //     },
-            //     take: 20,
-            // })
+            const governmentData = await this.prismaService.govPro.findMany({
+                orderBy: {
+                    id: 'desc',
+                },
+                take: 20,
+            })
 
-            // const koreanData = await this.prismaService.koPro.findMany({
-            //     orderBy: {
-            //         id: 'desc',
-            //     },
-            //     take: 16,
-            // })
+            const koreanData = await this.prismaService.koPro.findMany({
+                orderBy: {
+                    id: 'desc',
+                },
+                take: 16,
+            })
 
-            // 일단 데이터베이스에 저장된 값이 없어서 직접 요청하는 것으로 대체
-            const governmentData = await this.crawlerGovernmentProgram();
-            const koreanData = await this.crawlerKoreanProgram();
+            // // 일단 데이터베이스에 저장된 값이 없어서 직접 요청하는 것으로 대체
+            // const governmentData = await this.crawlerGovernmentProgram();
+            // const koreanData = await this.crawlerKoreanProgram();
 
             return {
                 message: '크롤링 데이터 조회 성공',
@@ -300,6 +302,7 @@ export class CrawlingService {
                 koreanData,
             }
         } catch (error) {
+            console.error('크롤링 에러 상세: ', error)
             throw new BadRequestException({
                 message: ['크롤링 데이터 조회에 실패했습니다. 다시 시도해주세요.'],
                 error: 'CrawlingError: ' + error.message,
