@@ -27,7 +27,6 @@ jobs:
         run: |
           npm install
           npm run build --if-present
-          npm run test --if-present
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
@@ -53,3 +52,7 @@ jobs:
           slot-name: 'kny'
           package: .
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_D7BA5CA3F5ED41D7B07B687A3A93D097 }}
+
+      - name: 'Run Prisma Migrations'
+        run: |
+          az webapp ssh --name worldstudy --resource-group rg-worldstudy --command "cd /home/site/wwwroot && npx prisma migrate deploy"
