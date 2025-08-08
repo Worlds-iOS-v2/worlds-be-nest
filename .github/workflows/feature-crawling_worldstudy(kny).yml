@@ -52,7 +52,3 @@ jobs:
           slot-name: 'kny'
           package: .
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_D7BA5CA3F5ED41D7B07B687A3A93D097 }}
-
-      - name: 'Run Prisma Generate and Migrations'
-        run: |
-          az webapp ssh --name worldstudy --resource-group rg-worldstudy --command "cd /home/site/wwwroot && npx prisma generate && npx prisma migrate deploy"
