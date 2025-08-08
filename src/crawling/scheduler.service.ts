@@ -10,7 +10,7 @@ export class SchedulerService {
     private readonly prismaService: PrismaService,
   ) { }
 
-  @Cron('0 9 * * *')
+  @Cron('17 11 * * *')
   async scheduleCrawlGov() {
     const today = new Date();
     console.log('scheduleCrawling', today);
@@ -42,7 +42,39 @@ export class SchedulerService {
     console.log('스케줄러 실행 완료');
   }
 
-  @Cron('0 9 * * 5')
+  @Cron('17 11 * * *')
+  async scheduleCrawlEvent() {
+    const today = new Date();
+    console.log('scheduleCrawling', today);
+    const eventData = await this.crawlingService.crawlerEvent();
+    console.log(eventData);
+
+    // 한국어 교육 프로그램 저장 -> 중복 저장 방지
+    for (const data of eventData) {
+      try {
+        // 같은 URL이 존재하는지 확인
+        const existing = await this.prismaService.eventPro.findFirst({
+          where: {
+            url: data.url,
+          }
+        })
+
+        if (!existing) {
+          await this.prismaService.eventPro.create({
+            data: data,
+          })
+          console.log(`새 행사 저장: ${data.title}`);
+        } else {
+          console.log(`이미 존재하는 행사: ${data.title}`);
+        }
+      } catch (error) {
+        console.error(`행사 저장 실패: ${data.title}`, error);
+      }
+    }
+    console.log('스케줄러 실행 완료');
+  }
+
+  @Cron('17 11 * * 5')
   async scheduleCrawlKo() {
     const today = new Date();
     console.log('scheduleCrawling', today);

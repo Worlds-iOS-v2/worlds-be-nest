@@ -274,6 +274,198 @@ export class CrawlingService {
         return govData
     }
 
+     // 행사? 아무튼 홍보실에 있는 거...
+    // 똑같이 20개씩 불러옴
+    async crawlerEvent(): Promise<any> {
+        console.log('크롤링 시작')
+        const eventData: any[] = [];
+        const now = new Date();
+        const today = format(now, 'yyyy-MM-dd');
+        const endDate = format(
+            new Date(now.getFullYear(), now.getMonth() + 3, 0),
+            'yyyy-MM-dd',
+        );
+
+        const browser = await puppeteer.launch({
+            headless: true,
+            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas',
+                '--no-first-run',
+                '--no-zygote',
+                '--disable-gpu',
+            ],
+        });
+
+        const page = await browser.newPage();
+
+        await page.goto('https://www.familynet.or.kr', { waitUntil: 'networkidle0' })
+        const newCsrfToken = await page.$eval('meta[name="_csrf"]', el => el.getAttribute('content'))
+
+        const URL = `https://www.familynet.or.kr/web/lay1/program/S1T304C423/receipt/list.do?_csrf=${newCsrfToken}&rows=20&cpage=1&cat=&program_categories=&program_reception_types=&program_statuses=&area=&area_detail=&program_start_date=${today}&program_end_date=${endDate}&keyword=%EB%8B%A4%EB%AC%B8%ED%99%94`;
+
+
+        try {
+            await page.goto(URL, { waitUntil: 'networkidle0', timeout: 30000 });
+
+            // 1. 페이지가 제대로 로드되었는지 확인
+            console.log('현재 URL:', await page.url())
+
+            // 2. 전체 li.clearfix 개수 확인
+            const allLiElements = await page.$$eval('.program_list li.clearfix', items => items.length)
+            console.log('전체 li.clearfix 개수:', allLiElements)
+
+            const programLinks = await page.$$eval('.program_list li.clearfix', listItems => {
+                return listItems.map(item => {
+                    // item 안에서 a 태그 찾기
+                    const link = item.querySelector('a[onclick*="showProgramView"]')
+                    if (link) {
+                        const onclick = link.getAttribute('onclick')
+                        if (onclick) {
+                            const match = onclick.match(/showProgramView\('([^']+)',\s*'([^']+)',\s*'([^']+)'\)/)
+                            if (match) {
+                                const [seq, area, area_detail] = [match[1], match[2], match[3]]
+                                return { seq, area, area_detail }
+                            }
+                        }
+                    }
+                    return null;
+                }).filter(item => item !== null);
+            })
+
+            console.log('수집된 링크 개수:', programLinks.length)
+            console.log('첫 번째 링크:', programLinks[0])
+
+            async function getCenterUrl(area, area_detail) {
+                console.log('getCenterUrl 호출됨:', area, area_detail)
+
+                const csrfToken = await page.$eval('meta[name="_csrf"]', el => el.getAttribute('content'))
+                console.log('csrfToken:', csrfToken)
+
+                const response = await page.evaluate(async (area, area_detail, csrfToken) => {
+                    const response = await fetch(`/getCenterUrl.do`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: `area=${area}&area_detail=${area_detail}&_csrf=${csrfToken}`,
+                    })
+                    
+                    if (!response.ok) {
+                        const errorText = await response.text()
+                        throw new Error(`HTTP ${response.status}: ${errorText}`)
+                    }
+                    
+                    const data = await response.json()
+                    if (data.error) {
+                        throw new Error(data.error)
+                    }
+                    
+                    return data.centerUrl
+                }, area, area_detail, csrfToken);
+
+                return response
+            }
+
+            let detailUrls: string[] = []
+            for (const link of programLinks) {
+                console.log('처리 중인 링크:', link)
+
+                try {
+                    const centerUrl = await getCenterUrl(link.area, link.area_detail).then(url => url.replace('http://', 'https://'))
+                    console.log('centerUrl:', centerUrl)
+
+                    const detailUrl = centerUrl + `/center/lay1/program/S1T304C423/receipt/view.do?seq=${link.seq}`
+                    console.log('detailUrl:', detailUrl)
+
+                    detailUrls.push(detailUrl)
+                } catch (error) {
+                    console.error('getCenterUrl 오류:', error)
+                }
+            }
+
+            for (const url of detailUrls) {
+                await page.goto(url, { waitUntil: 'domcontentloaded'})
+
+                const container = await page.waitForSelector('.view_style_1', { timeout: 10000 }).catch(() => {
+                    throw new InternalServerErrorException({
+                        message: ['컨텐츠 로딩에 실패했습니다. 네트워크를 확인해주세요.'],
+                        error: 'CrawlingError: content loading failed',
+                        statusCode: 500,
+                    })
+                })
+
+                if (container) {
+                    await page.waitForFunction(() => {
+                        const title = document.querySelector('#title');
+                        const image = document.querySelector('#main_img img');
+                        const bodyList = document.querySelectorAll('.txt ul li span');
+                        return image && title && bodyList.length > 0;
+                    }, { timeout: 10000 }).catch(() => {
+                        throw new InternalServerErrorException({
+                            message: ['컨텐츠 로딩에 실패했습니다. 네트워크를 확인해주세요.'],
+                            error: 'CrawlingError: content loading failed',
+                            statusCode: 500,
+                        })
+                    })
+
+                    const title = await page.evaluate(() => {
+                        const titleHtml = document.querySelector('#title');
+                        return titleHtml ? titleHtml.innerHTML : null;
+                    })
+
+                    const image = await page.evaluate(() => {
+                        const imageHtml = document.querySelector('#main_img img') as HTMLImageElement;
+                        return imageHtml ? imageHtml.src : null;
+                    })
+
+                    const bodyList = await page.evaluate(() => {
+                        const bodyList = document.querySelectorAll('.txt ul li span');
+                        return Array.from(bodyList).map(body => body.textContent);
+                    })
+
+                    const borough = bodyList[0]?.split('> ')[1].split(' ')[0]
+                    const programPeriod = bodyList[1]
+                    const applicationPeriod = bodyList[2]
+                    const target = bodyList[3]
+                    const price = bodyList[4]
+                    const contact = bodyList[9]
+                    let location = bodyList[10]?.split('오시는길')[0]
+
+                    if (location === '-' || location === ' ' || !location) {
+                        location = '홈페이지 참조'
+                    }
+
+                    const data = {
+                        borough: borough,
+                        title: title,
+                        image: image,
+                        programPeriod: programPeriod,
+                        applicationPeriod: applicationPeriod,
+                        target: target,
+                        price: price,
+                        contact: contact,
+                        location: location,
+                        url: url,
+                    }
+                    eventData.push(data)
+                }
+            }
+        } catch (error) {
+            console.error('크롤링 실패: ' + error.message)
+            throw new InternalServerErrorException({
+                message: ['다문화 행사 크롤링에 실패했습니다. 다시 시도해주세요.'],
+                statusCode: 500,
+            })
+        } finally {
+            await browser.close();
+        }
+        return eventData
+    }
+
     async getCrawlData() {
         try {
             // 원래는 이렇게 데이터베이스의 정보를 가져와야 함
@@ -291,6 +483,13 @@ export class CrawlingService {
                 take: 16,
             })
 
+            const eventData = await this.prismaService.eventPro.findMany({
+                orderBy: {
+                    id: 'desc',
+                },
+                take: 20,
+            })
+
             // // 일단 데이터베이스에 저장된 값이 없어서 직접 요청하는 것으로 대체
             // const governmentData = await this.crawlerGovernmentProgram();
             // const koreanData = await this.crawlerKoreanProgram();
@@ -300,6 +499,7 @@ export class CrawlingService {
                 statusCode: 200,
                 governmentData,
                 koreanData,
+                eventData,
             }
         } catch (error) {
             console.error('크롤링 에러 상세: ', error)

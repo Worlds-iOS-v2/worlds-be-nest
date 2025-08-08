@@ -44,4 +44,24 @@ export class CrawlResponseDto {
     }
   })
   koreanData: any[];
+
+  @ApiProperty({
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        borough: { type: 'string', example: '서초구' },
+        title: { type: 'string', example: '다문화 가족 지원 프로그램' },
+        image: { type: 'string', example: 'https://example.com/image.jpg' },
+        programPeriod: { type: 'string', example: '2025-01-01 ~ 2025-01-31' },
+        applicationPeriod: { type: 'string', example: '2025-01-01 ~ 2025-01-31' },
+        target: { type: 'string', example: '다문화가족' },
+        price: { type: 'string', example: '무료' },
+        contact: { type: 'string', example: '02-123-4567' },
+        location: { type: 'string', example: '서초구 가족센터' },
+        url: { type: 'string', example: 'https://example.com/program' },
+      }
+    }
+  })
+  eventData: any[];
 }
