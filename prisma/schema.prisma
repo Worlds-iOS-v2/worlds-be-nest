@@ -174,7 +174,9 @@ model Message {
   id         Int      @id @default(autoincrement())
   roomId     Int
   senderId   Int
-  content    String
+  content    String?
+  fileUrl    String?
+  fileType   String?
   isRead     Boolean  @default(false)
   createdAt  DateTime @default(now())
 
