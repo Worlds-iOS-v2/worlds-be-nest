@@ -1,20 +1,32 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateMessageDto } from './dto/create-message.dto';
+import { AzureStorageService } from 'src/common/azure-storage/azure-storage.service';
 
 @Injectable()
 export class ChatService {
-    constructor(private prisma: PrismaService) {}
+    constructor(
+        private prisma: PrismaService,
+        private azureStorageService: AzureStorageService, 
+    ) {}
 
-    async saveMessage(data: CreateMessageDto) {
-        const { roomId, senderId, content } = data;
+    async saveMessage(data: CreateMessageDto, file?: Express.Multer.File) {
+        let fileUrl = data.fileUrl || null;
+        let fileType = data.fileType || null;
 
-        // 메시지를 데이터베이스에 저장
+        // 파일이 첨부 -> Azure Storage
+        if (file) {
+            fileUrl = await this.azureStorageService.upload(file.buffer, file.originalname);
+            fileType = file.mimetype;
+        }
+
         return this.prisma.message.create({
             data: {
-                roomId,
-                senderId,
-                content,
+                roomId: data.roomId,
+                senderId: data.senderId,
+                content: data.content,
+                fileUrl,
+                fileType,
             },
         });
     }
@@ -29,16 +41,9 @@ export class ChatService {
                 ],
             },
             include: {
-                userA: {
-                    select: { id: true, userName: true },
-                },
-                userB: {
-                    select: { id: true, userName: true },
-                },
-                messages: {
-                    orderBy: { createdAt: 'desc' },
-                    take: 1,
-                },
+                userA: { select: { id: true, userName: true } },
+                userB: { select: { id: true, userName: true } },
+                messages: { orderBy: { createdAt: 'desc' }, take: 1 },
             },
         });
     }
@@ -52,6 +57,4 @@ export class ChatService {
             skip,
         });
     }
-
-
 }

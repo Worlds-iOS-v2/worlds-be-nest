@@ -9,6 +9,7 @@ import {
 import { Socket } from 'socket.io';
 import { ChatService } from './chat.service';
 import { CreateMessageDto } from './dto/create-message.dto';
+import { Express } from 'express';
 
 @WebSocketGateway({
   cors: {
@@ -41,15 +42,46 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // 클라이언트가 'send_message' 이벤트를 보낼 때 실행됨
   @SubscribeMessage('send_message')
   async handleMessage(
-    @MessageBody() data: CreateMessageDto,
+    @MessageBody()
+    data: CreateMessageDto & {
+      fileBase64?: string; // 선택: base64 인코딩된 파일 데이터
+      fileName?: string;   // 선택: 원본 파일명 (없으면 default 사용)
+      mimeType?: string;   // 선택: mime 타입 (없으면 octet-stream)
+    },
     @ConnectedSocket() client: Socket,
   ) {
     console.log('Message received:', data);
 
-    // 1. 메세지 저장
-    const savedMessage = await this.chatService.saveMessage(data);
+    let file: Express.Multer.File | undefined;
+
+    // 파일(Base64)이 함께 온 경우 처리
+    if (data.fileBase64) {
+      // data URL 형태("data:image/png;base64,....")가 올 수 있으니 헤더 분리 처리
+      const split = data.fileBase64.split(',');
+      const base64Payload = split.length > 1 ? split[1] : split[0];
+      const buffer = Buffer.from(base64Payload, 'base64');
+
+      file = {
+        fieldname: 'file',
+        originalname: data.fileName || 'upload',
+        encoding: '7bit',
+        mimetype: data.mimeType || 'application/octet-stream',
+        size: buffer.length,
+        buffer,
+        // 아래 속성들은 Multer 런타임에서만 사용되므로 게이트웨이에서는 생략 가능
+        destination: undefined as any,
+        filename: undefined as any,
+        path: undefined as any,
+        stream: undefined as any,
+      } as unknown as Express.Multer.File;
+    }
+
+    // 1. 메시지 저장
+    const savedMessage = await this.chatService.saveMessage(data, file);
 
     // 2. 상대방한테 메시지 전송
-    client.broadcast.to(data.roomId.toString()).emit('receive_message', savedMessage);
+    client.broadcast
+      .to(data.roomId.toString())
+      .emit('receive_message', savedMessage);
   }
 }
