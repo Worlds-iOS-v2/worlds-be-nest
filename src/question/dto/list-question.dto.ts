@@ -23,5 +23,23 @@ export class ListQuestionDto {
 
   @ApiProperty({ description: '답변 개수', example: 2 })
   answerCount: number;
+
+  // 전체 목록 형식이랑 동일시(작성자 정보 추가 -> 리팩토링시 삭제)
+  @ApiProperty({
+    description: '작성자 정보',
+    example: {
+      id: 1,
+      user_name: 'ohaii',
+      user_email: 'o@example.com',
+      user_role: true,
+    },
+  })
+  user: {
+    id: number;
+    user_name: string;
+    user_email: string;
+    user_role: boolean;
+  };
+  //
   
 }

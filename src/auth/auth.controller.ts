@@ -1,24 +1,25 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards, Request, Patch, Req, Delete } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards, Request, Patch, Req, Delete, UseInterceptors, UseFilters } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from './dto/CreateUserDto';
 import { SignInDto } from './dto/SignInDto';
 import { JwtAuthGuard } from './jwt-auth.guard';
-import { UserService } from 'src/user/user.service';
 import { Request as ExpressRequest } from 'express';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { UpdatePasswordDto } from './dto/UpdatePasswordDto';
 import { FindEmailDto } from './dto/FindEmailDto';
 import { CheckEmailDto } from './dto/CheckEmailDto';
-import { WithdrawalReason } from 'src/common/enums/withdrawal-reason.enum';
 import { DeleteUserDto } from './dto/DeleteUserDto';
+import { ResponseInterceptor } from 'src/common/interceptor/response.interceptor';
+import { HttpExceptionFilter } from 'src/common/interceptor/http-exception.filter';
 
 @ApiTags('사용자')
 @Controller('auth')
+@UseInterceptors(ResponseInterceptor)
+@UseFilters(HttpExceptionFilter)
 @ApiBearerAuth()
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
-    private readonly userService: UserService,
   ) {}
 
   // User signup endpoint
