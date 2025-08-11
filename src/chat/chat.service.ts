@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { AzureStorageService } from 'src/common/azure-storage/azure-storage.service';
 import { Express } from 'express';
+import { NotFoundException } from '@nestjs/common';
 
 @Injectable()
 export class ChatService {
@@ -80,6 +81,32 @@ export class ChatService {
       orderBy: { createdAt: 'asc' },
       take,
       skip,
+    });
+  }
+
+  // 메시지 신고
+  // reporterId: 신고한 사용자 ID (JWT에서 추출)
+  // messageId: 신고 대상 메시지 ID
+  // reason: ReportReason(enum) 문자열 값 (e.g. 'offensive' | 'sexual' | 'ad' | 'etc')
+  async reportMessage(reporterId: number, messageId: number, reason: string) {
+    // 대상 메시지 존재 여부 확인
+    const msg = await this.prisma.message.findUnique({ where: { id: messageId } });
+    if (!msg) {
+      throw new NotFoundException('메시지를 찾을 수 없습니다.');
+    }
+
+    // 자기 자신의 메시지는 신고 불가로 막으려면 아래 주석 해제
+    if (msg.senderId === reporterId) {
+      throw new BadRequestException('자신이 보낸 메시지는 신고할 수 없습니다.');
+    }
+
+    return this.prisma.report.create({
+      data: {
+        reporterId,
+        messageId,
+        reason: reason as any, // Prisma enum ReportReason과 동일 문자열 사용
+        etcReason: null,       // 현재 DTO에서는 etcReason 미사용
+      },
     });
   }
 }
