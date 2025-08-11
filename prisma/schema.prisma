@@ -35,6 +35,9 @@ model Users {
 
   // 내가 보낸 메시지들
   messagesSent Message[] @relation("MessageSender")
+
+  // 내가 발급한 PairingToken들
+  pairingTokens PairingToken[] @relation("UserPairingTokens")
 }
 
 // 탈퇴 사유
@@ -155,6 +158,17 @@ model CommentLike {
 }
 
 //채팅
+// QR발급
+model PairingToken {
+  id        Int       @id @default(autoincrement())
+  token     String    @unique
+  ownerId   Int
+  owner     Users     @relation("UserPairingTokens", fields: [ownerId], references: [id])
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  usedAt    DateTime?
+}
+
 // 사용자 간 채팅
 model ChatRoom {
   id        Int      @id @default(autoincrement())
@@ -174,7 +188,9 @@ model Message {
   id        Int      @id @default(autoincrement())
   roomId    Int
   senderId  Int
-  content   String
+  content   String?
+  fileUrl   String?
+  fileType  String?
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
 
