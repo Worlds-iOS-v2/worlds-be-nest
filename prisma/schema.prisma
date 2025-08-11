@@ -9,17 +9,17 @@ datasource db {
 
 // 사용자
 model Users {
-  id                 Int            @id @default(autoincrement())
-  userName           String
-  userEmail          String         @unique
-  birthday           DateTime
-  passwordHash       String
-  isMentor           Boolean        @default(false)
-  mentorCode         String?        @unique
-  reportCount        Int            @default(0)
-  refreshToken       String
-  targetLanguage     String
-  isDeleted Boolean?
+  id               Int               @id @default(autoincrement())
+  userName         String
+  userEmail        String            @unique
+  birthday         DateTime
+  passwordHash     String
+  isMentor         Boolean           @default(false)
+  mentorCode       String?           @unique
+  reportCount      Int               @default(0)
+  refreshToken     String
+  targetLanguage   String
+  isDeleted        Boolean?
   WithdrawalReason WithdrawalReason?
 
   comments           Comment[]
@@ -27,7 +27,7 @@ model Users {
   questions          Question[]
   reports            Report[]
   menteeTranslations Translations[]
-  ocr_images Ocrimages[]
+  ocr_images         Ocrimages[]
 
   // 내가 userA 또는 userB인 채팅방들
   chatRoomsAsUserA ChatRoom[] @relation("ChatRoomUserA")
@@ -35,6 +35,9 @@ model Users {
 
   // 내가 보낸 메시지들
   messagesSent Message[] @relation("MessageSender")
+
+  // 내가 발급한 PairingToken들
+  pairingTokens PairingToken[] @relation("UserPairingTokens")
 }
 
 // 탈퇴 사유
@@ -61,13 +64,13 @@ model Translations {
 
 // 이미지 업로드
 model Ocrimages {
-  id Int @id @default(autoincrement())
-  userId Int
+  id       Int    @id @default(autoincrement())
+  userId   Int
   fileName String
-  fileUrl String
+  fileUrl  String
   fileSize Int
   fileType String
-  user Users @relation(fields: [userId], references: [id])
+  user     Users  @relation(fields: [userId], references: [id])
 }
 
 // 카테고리
@@ -86,100 +89,111 @@ enum ReportReason {
 
 //질문
 model Question {
-  id Int @id @default(autoincrement())
-  title   String
-  content String
-  createdAt    DateTime    @default(now())
-  isDeleted    Boolean     @default(false)
-  isAnswered   Boolean     @default(false)
-  answerCount  Int         @default(0)
-  category     Category
+  id          Int      @id @default(autoincrement())
+  title       String
+  content     String
+  createdAt   DateTime @default(now())
+  isDeleted   Boolean  @default(false)
+  isAnswered  Boolean  @default(false)
+  answerCount Int      @default(0)
+  category    Category
 
-  userId       Int
-  user         Users        @relation(fields: [userId], references: [id])
-  
-  comments      Comment[]
-  reports      Report[]
-  attachments  Attachment[]
+  userId Int
+  user   Users @relation(fields: [userId], references: [id])
+
+  comments    Comment[]
+  reports     Report[]
+  attachments Attachment[]
 }
 
 // 첨부파일
 model Attachment {
-  id          Int        @id @default(autoincrement())
-  url         String
+  id  Int    @id @default(autoincrement())
+  url String
 
-  questionId  Int
-  question    Question   @relation(fields: [questionId], references: [id])
+  questionId Int
+  question   Question @relation(fields: [questionId], references: [id])
 }
 
 // 답변
 model Comment {
-  id          Int      @id @default(autoincrement())
-  content     String
-  createdAt   DateTime @default(now())
-  deleted Boolean @default(false)
-  question    Question @relation(fields: [questionId], references: [id])
-  questionId  Int
-  user        Users     @relation(fields: [userId], references: [id])
-  userId      Int
-  parentId    Int?
-  parent      Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
-  replies     Comment[] @relation("CommentReplies")
-  reports Report[]
-  likes CommentLike[]
+  id         Int           @id @default(autoincrement())
+  content    String
+  createdAt  DateTime      @default(now())
+  deleted    Boolean       @default(false)
+  question   Question      @relation(fields: [questionId], references: [id])
+  questionId Int
+  user       Users         @relation(fields: [userId], references: [id])
+  userId     Int
+  parentId   Int?
+  parent     Comment?      @relation("CommentReplies", fields: [parentId], references: [id])
+  replies    Comment[]     @relation("CommentReplies")
+  reports    Report[]
+  likes      CommentLike[]
 }
 
 // 사용자 신고
 model Report {
-  id Int @id @default(autoincrement())
-  reason ReportReason
-  etcReason String?
-  createdAt DateTime @default(now())
+  id         Int          @id @default(autoincrement())
+  reason     ReportReason
+  etcReason  String?
+  createdAt  DateTime     @default(now())
   reporterId Int
-  reporter Users @relation(fields: [reporterId], references: [id])
+  reporter   Users        @relation(fields: [reporterId], references: [id])
   questionId Int?
-  question Question? @relation(fields: [questionId], references: [id])
-  commentId Int?
-  comment Comment? @relation(fields: [commentId], references: [id])
+  question   Question?    @relation(fields: [questionId], references: [id])
+  commentId  Int?
+  comment    Comment?     @relation(fields: [commentId], references: [id])
 }
 
 // 댓글 좋아요
 model CommentLike {
-  id Int @id @default(autoincrement())
-  userId Int
-  user Users @relation(fields: [userId], references: [id])
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      Users    @relation(fields: [userId], references: [id])
   commentId Int?
-  comment Comment? @relation(fields: [commentId], references: [id])
+  comment   Comment? @relation(fields: [commentId], references: [id])
 
   @@unique([userId, commentId])
 }
 
 //채팅
+// QR발급
+model PairingToken {
+  id        Int       @id @default(autoincrement())
+  token     String    @unique
+  ownerId   Int
+  owner     Users     @relation("UserPairingTokens", fields: [ownerId], references: [id])
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  usedAt    DateTime?
+}
+
 // 사용자 간 채팅
 model ChatRoom {
-  id         Int      @id @default(autoincrement())
-  userAId    Int
-  userBId    Int
-  createdAt  DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  userAId   Int
+  userBId   Int
+  createdAt DateTime @default(now())
 
-  userA      Users    @relation("ChatRoomUserA", fields: [userAId], references: [id])
-  userB      Users    @relation("ChatRoomUserB", fields: [userBId], references: [id])
-  messages   Message[]
+  userA    Users     @relation("ChatRoomUserA", fields: [userAId], references: [id])
+  userB    Users     @relation("ChatRoomUserB", fields: [userBId], references: [id])
+  messages Message[]
 
   @@unique([userAId, userBId])
 }
 
 // 채팅 메시지 기록
 model Message {
-  id         Int      @id @default(autoincrement())
-  roomId     Int
-  senderId   Int
-  content    String?
-  fileUrl    String?
-  fileType   String?
-  isRead     Boolean  @default(false)
-  createdAt  DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  roomId    Int
+  senderId  Int
+  content   String?
+  fileUrl   String?
+  fileType  String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
 
-  room       ChatRoom @relation(fields: [roomId], references: [id])
-  sender     Users    @relation("MessageSender", fields: [senderId], references: [id])
+  room   ChatRoom @relation(fields: [roomId], references: [id])
+  sender Users    @relation("MessageSender", fields: [senderId], references: [id])
 }
