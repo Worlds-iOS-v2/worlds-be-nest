@@ -10,6 +10,7 @@ import {
   UseInterceptors,
   DefaultValuePipe,
   ParseIntPipe,
+  Body,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { ChatService } from './chat.service';
@@ -24,6 +25,7 @@ import {
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Express } from 'express';
+import { ReportDto } from './dto/report-message.dto';
 
 @ApiTags('Chat')
 @ApiBearerAuth()
@@ -72,4 +74,21 @@ export class ChatController {
   async uploadAttachment(@UploadedFile() file: Express.Multer.File) {
     return this.chatService.uploadAttachment(file);
   }
+
+  // 채팅방 신고
+  @Post('messages/:messageId/report')
+  @UseGuards(JwtAuthGuard)
+  async reportMessage(
+    @Req() req: Request,
+    @Param('messageId', ParseIntPipe) messageId: number,
+    @Body() body: ReportDto,
+) {
+  const user = req.user as any;
+  return this.chatService.reportMessage(Number(user.id), messageId, body.reason);
+}
+
+
+
+
+
 }
