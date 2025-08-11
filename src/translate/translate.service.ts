@@ -13,12 +13,10 @@ export class TranslateService {
     const apiKey = this.config.get<string>('GOOGLE_TRANSLATE_API_KEY');
     const url = `https://translation.googleapis.com/language/translate/v2?key=${apiKey}`;
 
-    const body = {
-      q: text,
-      source,
-      target,
-      format: 'text',
-    };
+    const body: any = { q: text, target, format: 'text' };
+    if (source && source !== 'auto') {
+        body.source = source;
+    }
 
     const { data } = await this.http.axiosRef.post(url, body);
     return data.data.translations[0].translatedText;
