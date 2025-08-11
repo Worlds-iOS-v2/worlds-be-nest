@@ -140,10 +140,15 @@ model Report {
   createdAt  DateTime     @default(now())
   reporterId Int
   reporter   Users        @relation(fields: [reporterId], references: [id])
+
   questionId Int?
-  question   Question?    @relation(fields: [questionId], references: [id])
-  commentId  Int?
-  comment    Comment?     @relation(fields: [commentId], references: [id])
+  question   Question? @relation(fields: [questionId], references: [id])
+
+  commentId Int?
+  comment   Comment? @relation(fields: [commentId], references: [id])
+
+  messageId Int?
+  message   Message? @relation(fields: [messageId], references: [id])
 }
 
 // 댓글 좋아요
@@ -176,6 +181,16 @@ model ChatRoom {
   userBId   Int
   createdAt DateTime @default(now())
 
+  // 사용자별 마지막에 읽은 메세지
+  lastReadMessageIdByA Int?
+  lastReadMessageIdByB Int?
+  lastReadByA          Message? @relation("LastReadByA", fields: [lastReadMessageIdByA], references: [id])
+  lastReadByB          Message? @relation("LastReadByB", fields: [lastReadMessageIdByB], references: [id])
+
+  // 채팅방 나가기 -> 숨김상태
+  isHiddenForUserA Boolean @default(false)
+  isHiddenForUserB Boolean @default(false)
+
   userA    Users     @relation("ChatRoomUserA", fields: [userAId], references: [id])
   userB    Users     @relation("ChatRoomUserB", fields: [userBId], references: [id])
   messages Message[]
@@ -196,6 +211,10 @@ model Message {
 
   room   ChatRoom @relation(fields: [roomId], references: [id])
   sender Users    @relation("MessageSender", fields: [senderId], references: [id])
+
+  lastReadPointerForA ChatRoom[] @relation("LastReadByA")
+  lastReadPointerForB ChatRoom[] @relation("LastReadByB")
+  Report              Report[]
 }
 
 // 정부 프로그램 데이터
