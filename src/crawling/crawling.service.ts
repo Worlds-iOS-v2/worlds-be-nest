@@ -56,7 +56,7 @@ export class CrawlingService {
 
             const linkHrefs: string[] = [];
             for (const linkElement of linkElements) {
-                const href = await linkElement.evaluate((el) => el.href);
+                const href = await linkElement.evaluate((el) => (el.href));
                 linkHrefs.push(href);
             }
 
