@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { AzureStorageService } from 'src/common/azure-storage/azure-storage.service';
+import { Express } from 'express';
 
 @Injectable()
 export class ChatService {

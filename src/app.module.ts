@@ -12,12 +12,15 @@ import { OcrModule } from './ocr/ocr.module';
 import { AzureStorageModule } from './azure-storage/azure-storage.module';
 import { TranslateModule } from './translate/translate.module';
 import { ChatModule } from './chat/chat.module';
+import { CrawlingModule } from './crawling/crawling.module';
+import { ScheduleModule } from '@nestjs/schedule';
 import { PairingModule } from './pairing/pairing.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    ScheduleModule.forRoot(),
     UserModule,
     AuthModule,
     PrismaModule,
@@ -29,6 +32,7 @@ import { PairingModule } from './pairing/pairing.module';
     AzureStorageModule,
     TranslateModule,
     ChatModule,
+    CrawlingModule,
     PairingModule,
   ],
   controllers: [AppController],
