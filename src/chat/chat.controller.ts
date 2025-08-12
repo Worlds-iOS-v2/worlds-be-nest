@@ -39,7 +39,7 @@ export class ChatController {
   @ApiOperation({ summary: '내 채팅방 목록 조회' })
   async getUserChatRooms(@Req() req: Request) {
     const user = req.user as any; // JwtStrategy.validate()가 반환한 객체
-    return this.chatService.getUserChatRooms(Number(user.id));
+    return this.chatService.getUserChatRoomsWithUnread(Number(user.id));
   }
 
   // 채팅방 입장 -> 메세지 상세 내용 (페이지네이션)
@@ -87,8 +87,29 @@ export class ChatController {
   return this.chatService.reportMessage(Number(user.id), messageId, body.reason);
 }
 
+  // 채팅방 나가기(숨김)
+  @Post('rooms/:roomId/leave')
+  @UseGuards(JwtAuthGuard)
+  @ApiParam({ name: 'roomId', type: Number })
+  @ApiOperation({ summary: '채팅방 나가기(숨김 처리)' })
+  async leaveRoom(
+    @Req() req: Request,
+    @Param('roomId', ParseIntPipe) roomId: number,
+  ) {
+    const user = req.user as any;
+    return this.chatService.leaveRoom(Number(user.id), roomId);
+  }
 
-
-
-
+  // 채팅방 숨김 해제
+  @Post('rooms/:roomId/unhide')
+  @UseGuards(JwtAuthGuard)
+  @ApiParam({ name: 'roomId', type: Number })
+  @ApiOperation({ summary: '채팅방 숨김 해제' })
+  async unhideRoom(
+    @Req() req: Request,
+    @Param('roomId', ParseIntPipe) roomId: number,
+  ) {
+    const user = req.user as any;
+    return this.chatService.unhideRoom(Number(user.id), roomId);
+  }
 }
