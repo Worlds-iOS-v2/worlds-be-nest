@@ -335,13 +335,21 @@ export class AuthService {
                 statusCode: 401,
             });
         }
-        const isMatch = await bcrypt.compare(signinform.password, user.passwordHash);
 
+        const isMatch = await bcrypt.compare(signinform.password, user.passwordHash);
         if (!isMatch) {
             throw new UnauthorizedException({
                 message: ['이메일 또는 비밀번호가 일치하지 않습니다.'],
                 error: 'Unauthorized',
                 statusCode: 401,
+            });
+        }
+
+        if (user.isBlocked) {
+            throw new BadRequestException({
+                message: ['정지된 계정입니다. 관리자에게 문의해주세요.'],
+                error: 'BadRequest',
+                statusCode: 400,
             });
         }
 

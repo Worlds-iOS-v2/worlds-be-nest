@@ -5,11 +5,14 @@ import { ListQuestionDto } from './dto/list-question.dto';
 import { ResponseQuesitonDto } from './dto/detail-question.dto';
 import { Category } from 'src/common/enums/category.enum';
 import { ReportDto } from './dto/report-question.dto';
+import { UserService } from 'src/user/user.service';
 
 @Injectable()
 export class QuestionService {
   [x: string]: any;
-    constructor(private readonly prisma: PrismaService) {}
+    constructor(private readonly prisma: PrismaService,
+      private readonly userService: UserService,
+    ) {}
 
     //질문 생성
     async createQuestion(
@@ -123,6 +126,31 @@ export class QuestionService {
 
   // 질문 신고
   async reportQuestion(questionId: number, reporterId: number, dto: ReportDto) {
+
+    // 질문 작성자의 신고 횟수 증가
+    const question = await this.prisma.question.findUnique({
+      where: { id: questionId },
+      select: { userId: true }
+    });
+
+    if (!question) {
+      throw new NotFoundException('질문을 찾을 수 없습니다.');
+    }
+
+    const updatedUser = await this.prisma.users.update({
+      where: { id: question.userId },
+      data: {
+        reportCount: {
+          increment: 1,
+        },
+      }
+    })
+
+    // 10회 이상이면 차단
+    if (updatedUser.reportCount >= 10) {
+      await this.userService.blockUser(question.userId);
+    }
+
     return this.prisma.report.create({
       data: {
         reason: dto.reason,
