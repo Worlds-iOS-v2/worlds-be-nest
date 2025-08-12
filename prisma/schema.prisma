@@ -21,6 +21,7 @@ model Users {
   targetLanguage   String
   isDeleted        Boolean?
   WithdrawalReason WithdrawalReason?
+  isBlocked        Boolean           @default(false)
 
   comments           Comment[]
   commentLikes       CommentLike[]
@@ -38,6 +39,9 @@ model Users {
 
   // 내가 발급한 PairingToken들
   pairingTokens PairingToken[] @relation("UserPairingTokens")
+
+  // 출석 데이터
+  attendances Attendance[]
 }
 
 // 탈퇴 사유
@@ -260,4 +264,14 @@ model EventPro {
   location          String
   url               String
   createdAt         DateTime @default(now())
+}
+
+// 출석 데이터
+model Attendance {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      Users    @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, createdAt])
 }
