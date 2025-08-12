@@ -18,6 +18,7 @@ export class UserService {
             where: {
                 id: userId,
                 isDeleted: false,
+                isBlocked: false,
             },
             data: {
                 refreshToken: token || '',
@@ -34,6 +35,7 @@ export class UserService {
             where: {
                 id: userId,
                 isDeleted: false,
+                isBlocked: false,
             },
             select: {
                 id: true,
@@ -50,6 +52,7 @@ export class UserService {
             where: {
                 id: userId,
                 isDeleted: false,
+                isBlocked: false,
             },
             select: {
                 id: true,
@@ -69,6 +72,7 @@ export class UserService {
             where: {
                 userEmail: email,
                 isDeleted: false,
+                isBlocked: false,
             },
             select: {
                 id: true,
@@ -86,6 +90,7 @@ export class UserService {
             where: {
                 id: userId,
                 isDeleted: false,
+                isBlocked: false,
             },
             select: {
                 id: true,
@@ -102,6 +107,7 @@ export class UserService {
             where: {
                 userEmail: signinform.userEmail,
                 isDeleted: false,
+                isBlocked: false,
             },
         });
 
