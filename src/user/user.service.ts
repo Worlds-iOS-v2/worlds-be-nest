@@ -18,6 +18,7 @@ export class UserService {
             where: {
                 id: userId,
                 isDeleted: false,
+                isBlocked: false,
             },
             data: {
                 refreshToken: token || '',
@@ -34,6 +35,7 @@ export class UserService {
             where: {
                 id: userId,
                 isDeleted: false,
+                isBlocked: false,
             },
             select: {
                 id: true,
@@ -50,6 +52,7 @@ export class UserService {
             where: {
                 id: userId,
                 isDeleted: false,
+                isBlocked: false,
             },
             select: {
                 id: true,
@@ -76,6 +79,7 @@ export class UserService {
                 passwordHash: true,
                 refreshToken: true,
                 userName: true,
+                isBlocked: true,
             },
         });
     }
@@ -86,6 +90,7 @@ export class UserService {
             where: {
                 id: userId,
                 isDeleted: false,
+                isBlocked: false,
             },
             select: {
                 id: true,
@@ -102,6 +107,7 @@ export class UserService {
             where: {
                 userEmail: signinform.userEmail,
                 isDeleted: false,
+                isBlocked: false,
             },
         });
 
@@ -133,5 +139,27 @@ export class UserService {
     // 비밀번호 일치하는지 확인
     async comparePassword(plainPWD: string, hashedPWD: string): Promise<boolean> {
         return bcrypt.compare(plainPWD, hashedPWD);
+    }
+
+    async blockUser(userId: number) {
+        const user = await this.prisma.users.findUnique({
+            where: {
+                id: userId,
+            }
+        })
+
+        if (user) {
+            if (user.reportCount >= 10) {
+                await this.prisma.users.update({
+                    where: {
+                        id: userId,
+                    },
+                    data: {
+                        refreshToken: '',
+                        isBlocked: true,
+                    }
+                })
+            }
+        }
     }
 }

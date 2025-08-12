@@ -115,4 +115,22 @@ export class AuthController {
     const userId = (req.user as any).id;
     return this.authService.deactivateUser(userId, req.body as DeleteUserDto);
   }
+
+  @Get('attendance')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: '출석 체크' })
+  @ApiResponse({ status: 200, description: '출석 체크 성공' })
+  async checkAttendance(@Request() req: ExpressRequest) {
+    const userId = (req.user as any).id;
+    return this.authService.checkAttendance(userId);
+  }
+
+  @Get('attendance-dates')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: '출석 일자 조회' })
+  @ApiResponse({ status: 200, description: '출석 일자 조회 성공' })
+  async getAttendanceDates(@Request() req: ExpressRequest) {
+    const userId = (req.user as any).id;
+    return this.authService.getAttendanceDates(userId);
+  }
 }

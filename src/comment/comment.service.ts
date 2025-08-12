@@ -1,13 +1,17 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { connect } from 'http2';
 import { CreateReportDto } from './dto/create-report.dto';
 import { ReportReason } from '@prisma/client';
+import { UserService } from 'src/user/user.service';
 
 @Injectable()
 export class CommentService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private userService: UserService,
+  ) { }
 
   // 댓글 작성
   async createComment(
@@ -130,6 +134,30 @@ export class CommentService {
     // 기타 사유일 경우 etcReason이 있는지 체크
     if (dto.reason === ReportReason.etc && !dto.etcReason) {
       throw new BadRequestException('기타 사유를 입력해주세요.');
+    }
+
+    // 댓글 작성자의 신고 횟수 증가
+    const comment = await this.prisma.comment.findUnique({
+      where: { id: commentId },
+      select: { userId: true }
+    });
+
+    if (!comment) {
+      throw new NotFoundException('댓글을 찾을 수 없습니다.');
+    }
+
+    const updatedUser = await this.prisma.users.update({
+      where: { id: comment.userId }, // 신고받는 사람
+      data: {
+        reportCount: {
+          increment: 1,
+        },
+      },
+    });
+
+    // 10회 이상이면 차단
+    if (updatedUser.reportCount >= 10) {
+      await this.userService.blockUser(comment.userId);
     }
 
     return this.prisma.report.create({
