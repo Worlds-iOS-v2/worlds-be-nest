@@ -84,4 +84,34 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       .to(data.roomId.toString())
       .emit('receive_message', savedMessage);
   }
+
+  // 클라이언트가 'read_message' 이벤트를 보낼 때 실행됨
+  @SubscribeMessage('read_message')
+  async handleReadMessage(
+    @MessageBody()
+    data: { roomId: number; messageIds: number[]; userId: number },
+    @ConnectedSocket() client: Socket,
+  ) {
+    console.log('Read message event received:', data);
+
+    // 방 기준으로 읽음 처리 + 마지막 읽은 메시지 포인터 갱신
+    const result = await this.chatService.markMessagesAsReadInRoom(
+      data.roomId,
+      data.userId,
+      data.messageIds,
+    );
+
+    // 다른 클라이언트에게 읽음 처리 알림 (마지막 읽은 메시지 ID 포함)
+    client.broadcast
+      .to(data.roomId.toString())
+      .emit('messages_read', {
+        userId: data.userId,
+        roomId: data.roomId,
+        messageIds: data.messageIds,
+        lastReadMessageId: result.lastReadMessageId,
+      });
+
+    // 호출자에게도 처리 결과를 응답으로 반환 (선택적 ack)
+    return result;
+  }
 }
