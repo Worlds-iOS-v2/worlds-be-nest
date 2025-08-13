@@ -1,0 +1,534 @@
+import { Injectable, UnauthorizedException, Logger, BadRequestException } from '@nestjs/common';
+import { PrismaService } from 'src/prisma/prisma.service';
+import * as bcrypt from 'bcrypt';
+import { CreateUserDto } from './dto/CreateUserDto';
+import { ConfigService } from '@nestjs/config';
+import { SignInDto } from './dto/SignInDto';
+import { UserService } from 'src/user/user.service';
+import { JwtService } from '@nestjs/jwt';
+import { FindEmailDto } from './dto/FindEmailDto';
+import { UpdatePasswordDto } from './dto/UpdatePasswordDto';
+import { AuthUser } from 'src/types/auth-user.interface';
+import { DeleteUserDto } from './dto/DeleteUserDto';
+import { format } from 'date-fns';
+
+@Injectable()
+export class AuthService {
+    private logger = new Logger();
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly config: ConfigService,
+        private readonly userService: UserService,
+        private readonly jwtService: JwtService,
+    ) { }
+
+    // 회원가입
+    async signUp(signupform: CreateUserDto) {
+        console.log('회원가입 시작');
+        const trimEmail = signupform.userEmail.toLowerCase().trim();
+
+        const existsUser = await this.prisma.users.findUnique({
+            where: {
+                userEmail: trimEmail,
+            }
+        })
+
+        if (existsUser) {
+            if (!existsUser.isDeleted) {
+                throw new BadRequestException({
+                    message: ['이미 존재하는 이메일입니다.'],
+                    error: 'BadRequest',
+                    statusCode: 400,
+                });
+            } else {
+                return await this.reactivateUser(existsUser.id, signupform);
+            }
+        }
+
+        // 비밀번호 해싱
+        const salt = parseInt(this.config.get('SALT_ROUNDS') || '10');
+        const hashedPassword = await bcrypt.hash(signupform.password, salt);
+
+        const user = await this.prisma.users.create({
+            data: {
+                userEmail: trimEmail,
+                userName: signupform.userName,
+                birthday: signupform.userBirth,
+                passwordHash: hashedPassword,
+                isMentor: signupform.isMentor,
+                mentorCode: signupform.mentorCode,
+                targetLanguage: signupform.targetLanguage,
+                refreshToken: '',
+                isDeleted: false,
+            },
+        });
+
+        console.log('회원가입 완료');
+        return {
+            message: '회원가입 성공',
+            statusCode: 200,
+        };
+    }
+
+    // 이메일 중복 확인
+    async checkEmailUnique(email: string) {
+        const user = await this.prisma.users.findUnique({
+            where: {
+                userEmail: email,
+                isDeleted: false,
+            },
+        });
+
+        if (user) {
+            throw new BadRequestException({
+                message: ['이미 존재하는 이메일입니다.'],
+                error: 'BadRequest',
+                statusCode: 400,
+            });
+        }
+
+        return {
+            message: '사용 가능한 이메일입니다.',
+            statusCode: 200,
+        }
+    }
+
+    // signin
+    async signIn(signinform: SignInDto) {
+        const user = await this.validateUser(signinform);
+
+        if (user.isBlocked) {
+            throw new BadRequestException({
+                message: ['정지된 계정입니다. 관리자에게 문의해주세요.'],
+                error: 'BadRequest',
+                statusCode: 400,
+            });
+        }
+
+        const accessPayload = {
+            sub: user.id,
+            username: user.userName,
+            email: user.userEmail,
+            type: 'access'
+        }
+
+        const refreshPayload = {
+            sub: user.id,
+            type: 'refresh',
+        }
+
+        const accessToken = this.jwtService.sign(accessPayload, {
+            expiresIn: '1h',
+        });
+
+        const refreshToken = this.jwtService.sign(refreshPayload, {
+            expiresIn: '30d',
+        });
+
+        await this.userService.updateRefreshToken(user.id, refreshToken);
+
+        return {
+            message: '로그인 성공',
+            statusCode: 200,
+            username: user.userName,
+            access_token: accessToken,
+            refresh_token: refreshToken,
+        }
+    }
+
+    // 이메일 찾기
+    async findEmail(findemailform: FindEmailDto) {
+        const user = await this.prisma.users.findFirst({
+            where: {
+                userName: findemailform.userName,
+                isDeleted: false,
+                isBlocked: false,
+            },
+            select: {
+                userEmail: true,
+            }
+        })
+
+        if (!user) {
+            throw new UnauthorizedException({
+                message: ['사용자를 찾을 수 없습니다.'],
+                error: 'Unauthorized',
+                statusCode: 401,
+            });
+        }
+
+        return {
+            message: '이메일 찾기 성공',
+            statusCode: 200,
+            userEmail: user.userEmail,
+        }
+    }
+
+    // 비밀번호 검증 및 변경
+    async updatePassword(userId: number, updatepasswordform: UpdatePasswordDto) {
+        const user = await this.userService.findUserForResetPassword(userId);
+        if (!user) {
+            throw new UnauthorizedException({
+                message: ['사용자를 찾을 수 없습니다.'],
+                error: 'Unauthorized',
+                statusCode: 401,
+            });
+        }
+
+        const isMatch = await bcrypt.compare(updatepasswordform.org_password, user.passwordHash);
+        if (!isMatch) {
+            throw new UnauthorizedException({
+                message: ['비밀번호가 일치하지 않습니다.'],
+                error: 'Unauthorized',
+                statusCode: 401,
+            });
+        }
+
+        const isExsists = await bcrypt.compare(updatepasswordform.new_password, user.passwordHash);
+        if (isExsists) {
+            throw new BadRequestException({
+                message: ['기존에 사용하던 비밀번호와 동일합니다. 다른 비밀번호를 입력해주세요.'],
+                error: 'BadRequest',
+                statusCode: 400,
+            });
+        }
+
+        const salt = parseInt(this.config.get('SALT_ROUNDS') || '10');
+        const hashedPassword = await bcrypt.hash(updatepasswordform.new_password, salt);
+
+        await this.prisma.users.update({
+            where: {
+                id: userId,
+                isDeleted: false,
+                isBlocked: false,
+            },
+            data: {
+                passwordHash: hashedPassword,
+            }
+        })
+
+        return {
+            message: '비밀번호 변경 성공',
+            statusCode: 200,
+        }
+    }
+
+    // 리프레시 토큰 검증 + 액세스 토큰 재발급
+    async validateRefreshToken(token: string) {
+        try {
+            // 1. JWT 검증
+            const decoded = this.jwtService.verify(token, {
+                secret: this.config.get('JWT_SECRET'),
+            })
+            const user = await this.userService.findUserForTokenRefresh(decoded.sub);
+
+            // 2. 토큰 타입 검증
+            if (decoded.type !== 'refresh') {
+                throw new UnauthorizedException({
+                    message: ['Refresh token이 아닙니다.'],
+                    error: 'Unauthorized',
+                    statusCode: 401,
+                });
+            }
+
+            // 3. 사용자 존재 및 토큰 검증
+            if (!user || !user.refreshToken || user.refreshToken === '') {
+                throw new UnauthorizedException({
+                    message: ['사용자 또는 토큰을 찾을 수 없습니다.'],
+                    error: 'Unauthorized',
+                    statusCode: 401,
+                });
+            }
+
+            if (token !== user.refreshToken) {
+                throw new UnauthorizedException({
+                    message: ['유효하지 않는 토큰입니다.'],
+                    error: 'Unauthorized',
+                    statusCode: 401,
+                });
+            }
+
+            const accessPayload = {
+                sub: user.id,
+                username: user.userName,
+                type: 'access',
+            }
+
+            const refreshPayload = {
+                sub: user.id,
+                type: 'refresh',
+            }
+
+            const newAccessToken = this.jwtService.sign(accessPayload, {
+                expiresIn: '1h',
+            });
+
+            return {
+                message: '액세스 토큰 재발급 성공',
+                statusCode: 200,
+                access_token: newAccessToken,
+            };
+        } catch (error) {
+            this.logger.error('Refresh token error:', {
+                errorName: error?.name,
+                errorMessage: error?.message,
+                errorStack: error?.stack,
+            });
+
+            throw new UnauthorizedException({
+                message: ['토큰이 유효하지 않습니다.'],
+                error: 'Unauthorized',
+                statusCode: 401,
+            });
+        }
+    }
+
+    // 로그아웃
+    async logout(userId: number) {
+        console.log('로그아웃 시작 - userId:', userId);
+
+        // 로그아웃 전 refresh token 확인
+        const userBefore = await this.userService.findUserForTokenRefresh(userId);
+        console.log('로그아웃 전 refresh token:', userBefore?.refreshToken);
+
+        // refresh token 빈 문자열로 설정
+        await this.userService.updateRefreshToken(userId, '');
+
+        // 로그아웃 후 refresh token 확인
+        const userAfter = await this.userService.findUserForTokenRefresh(userId);
+        console.log('로그아웃 후 refresh token:', userAfter?.refreshToken);
+
+        return {
+            message: '로그아웃 성공',
+            statusCode: 200,
+        }
+    }
+
+    // 사용자 정보 조회
+    async getUserInfo(userId: number) {
+        const user = await this.userService.findUserById(userId);
+
+        if (!user) {
+            throw new UnauthorizedException({
+                message: ['사용자를 찾을 수 없습니다.'],
+                error: 'Unauthorized',
+                statusCode: 401,
+            });
+        }
+
+        return {
+            message: '사용자 정보 조회 성공',
+            statusCode: 200,
+            userInfo: user,
+        }
+    }
+
+    // 로그인 유저 검증
+    async validateUser(
+        signinform: SignInDto,
+    ): Promise<AuthUser> {
+        const user = await this.userService.findUserForValidation(signinform.userEmail);
+        if (!user) {
+            throw new UnauthorizedException({
+                message: ['이메일 또는 비밀번호가 일치하지 않습니다.'],
+                error: 'Unauthorized',
+                statusCode: 401,
+            });
+        }
+
+        const isMatch = await bcrypt.compare(signinform.password, user.passwordHash);
+        if (!isMatch) {
+            throw new UnauthorizedException({
+                message: ['이메일 또는 비밀번호가 일치하지 않습니다.'],
+                error: 'Unauthorized',
+                statusCode: 401,
+            });
+        }
+
+        if (user.isBlocked) {
+            throw new BadRequestException({
+                message: ['정지된 계정입니다. 관리자에게 문의해주세요.'],
+                error: 'BadRequest',
+                statusCode: 400,
+            });
+        }
+
+        const { passwordHash: _, refreshToken: __, ...safeUser } = user;
+        return safeUser as AuthUser;
+    }
+
+    // 회원 탈퇴 (soft-delete)
+    async deactivateUser(userId: number, deleteuserform: DeleteUserDto) {
+        const user = await this.prisma.users.findUnique({
+            where: {
+                id: userId,
+                isDeleted: false,
+                isBlocked: false,
+            }
+        })
+
+        if (!user) {
+            throw new UnauthorizedException({
+                message: ['사용자를 찾을 수 없습니다.'],
+                error: 'Unauthorized',
+                statusCode: 401,
+            })
+        }
+
+        await this.prisma.users.update({
+            where: {
+                id: userId,
+                isDeleted: false,
+                isBlocked: false,
+            },
+            data: {
+                isDeleted: true,
+                WithdrawalReason: deleteuserform.withdrawalReason,
+            }
+        })
+
+        return {
+            message: '회원탈퇴 성공',
+            statusCode: 200,
+            withdrawalReason: deleteuserform.withdrawalReason,
+        }
+    }
+
+    // 탈퇴 회원 재가입
+    async reactivateUser(userId: number, signupform: CreateUserDto) {
+        const salt = parseInt(this.config.get('SALT_ROUNDS') || '10');
+        const hashedPassword = await bcrypt.hash(signupform.password, salt);
+        const trimEmail = signupform.userEmail.toLowerCase().trim();
+
+        await this.prisma.users.update({
+            where: {
+                id: userId,
+            },
+            data: {
+                userEmail: trimEmail,
+                userName: signupform.userName,
+                birthday: signupform.userBirth,
+                passwordHash: hashedPassword,
+                isMentor: signupform.isMentor,
+                mentorCode: signupform.mentorCode,
+                targetLanguage: signupform.targetLanguage,
+                isDeleted: false,
+                refreshToken: '',
+            }
+        })
+
+        return {
+            message: '탈퇴 회원 재가입 성공',
+            statusCode: 200,
+        }
+    }
+
+    // 출석 체크
+    async checkAttendance(userId: number) {
+        const user = await this.userService.findUserById(userId);
+
+        if (!user) {
+            throw new UnauthorizedException({
+                message: ['사용자를 찾을 수 없습니다.'],
+                error: 'Unauthorized',
+                statusCode: 401,
+            });
+        }
+
+        const today = new Date();
+        const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+
+        // 오늘 출석 여부 확인
+        const isAttendance = await this.prisma.attendance.findFirst({
+            where: {
+                userId: user.id,
+                createdAt: {
+                    gte: startOfDay,
+                    lte: endOfDay,
+                }
+            }
+        });
+
+        if (isAttendance) {
+            return {
+                message: '이미 출석했습니다.',
+                statusCode: 200,
+            }
+        }
+
+        if (isAttendance) { }
+
+        const attendance = await this.prisma.attendance.create({
+            data: {
+                userId: user.id,
+                createdAt: new Date(),
+            }
+        })
+
+        const createdAt = new Date(attendance.createdAt);
+        const attendaceDate = format(createdAt, 'yyyy-MM-dd');
+        console.log(`출석 체크 완료: ${attendaceDate}`);
+
+        return {
+            message: '출석 체크 성공',
+            statusCode: 200
+        }
+    }
+
+    // 출석 일자 조회 - 일주일 단위
+    async getAttendanceDates(userId: number) {
+        const user = await this.userService.findUserById(userId);
+
+        if (!user) {
+            throw new UnauthorizedException({
+                message: ['사용자를 찾을 수 없습니다.'],
+                statusCode: 401,
+                error: 'Unauthorized',
+            });
+        }
+
+        const getCurrentWeekRange = () => {
+            const now = new Date();
+            const datOfWeek = now.getDay(); // 0: 일요일, 1: 월요일, ... 6: 토요일
+
+            // 이번 주 일요일 (오늘 기준으로 일요일로 이동)
+            const sunday = new Date(now);
+            sunday.setDate(now.getDate() - datOfWeek);
+            sunday.setHours(0, 0, 0, 0);
+
+            // 이번 주 토요일 (오늘 기준으로 토요일로 이동)
+            const saturday = new Date(now);
+            saturday.setDate(now.getDate() + (6 - datOfWeek));
+            saturday.setHours(23, 59, 59, 999);
+
+            return { start: sunday, end: saturday };
+        }
+
+        const { start, end } = getCurrentWeekRange();
+
+        const attendanceDates = await this.prisma.attendance.findMany({
+            where: {
+                userId: user.id,
+                createdAt: {
+                    gte: start,
+                    lte: end,
+                }
+            },
+            select: {
+                createdAt: true,
+            },
+            orderBy: {
+                createdAt: 'desc',
+            },
+        });
+
+        const dates = attendanceDates.map(attendance => format(new Date(attendance.createdAt), 'yyyy-MM-dd'));
+
+        return {
+            message: '출석 일자 조회 성공',
+            statusCode: 200,
+            dates,
+        }
+    }
+}
