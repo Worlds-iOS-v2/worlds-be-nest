@@ -30,6 +30,7 @@ export class AuthService {
     async signUp(signupform: CreateUserDto) {
         this.logger.log('회원가입 시작');
         const trimEmail = signupform.userEmail.toLowerCase().trim();
+        const birthday = format(new Date(signupform.userBirth), 'yyyy-MM-dd')
 
         // 비밀번호 해싱
         const salt = parseInt(this.config.get('SALT_ROUNDS') || '10');
@@ -73,7 +74,7 @@ export class AuthService {
                     },
                     data: {
                         userName: signupform.userName,
-                        birthday: signupform.userBirth,
+                        birthday: birthday,
                         passwordHash: hashedPassword,
                         isMentor: signupform.isMentor,
                         targetLanguage: signupform.targetLanguage,
@@ -427,6 +428,7 @@ export class AuthService {
         const salt = parseInt(this.config.get('SALT_ROUNDS') || '10');
         const hashedPassword = await bcrypt.hash(signupform.password, salt);
         const trimEmail = signupform.userEmail.toLowerCase().trim();
+        const birthday = format(signupform.userBirth, 'yyyy-MM-dd')
 
         await this.prisma.users.update({
             where: {
@@ -435,7 +437,7 @@ export class AuthService {
             data: {
                 userEmail: trimEmail,
                 userName: signupform.userName,
-                birthday: signupform.userBirth,
+                birthday: birthday,
                 passwordHash: hashedPassword,
                 isMentor: signupform.isMentor,
                 targetLanguage: signupform.targetLanguage,
@@ -902,7 +904,7 @@ export class AuthService {
                 create: {
                     userEmail: trimEmail,
                     userName: '',
-                    birthday: new Date(),
+                    birthday: '',
                     passwordHash: '',
                     isDeleted: false,
                     isBlocked: false,

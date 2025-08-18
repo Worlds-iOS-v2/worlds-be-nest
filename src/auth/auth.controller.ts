@@ -13,6 +13,7 @@ import { ResponseInterceptor } from 'src/common/interceptor/response.interceptor
 import { HttpExceptionFilter } from 'src/common/interceptor/http-exception.filter';
 import { VerifyCodeDto } from './dto/VerifyCodeDto';
 import { ResetPasswordDto } from './dto/ChangePasswordDto';
+import { GetUserInfoDto } from './dto/GetUserInfoDto';
 
 @ApiTags('사용자')
 @Controller('auth')
@@ -84,7 +85,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('userinfo')
   @ApiOperation({ summary: '사용자 정보 조회' })
-  @ApiResponse({ status: 200, description: '사용자 정보 조회 성공' })
+  @ApiResponse({ status: 200, description: '사용자 정보 조회 성공', type: GetUserInfoDto })
   async getUserInfo(@Request() req: ExpressRequest) {
     const userId = (req.user as any).id;
     return this.authService.getUserInfo(userId);
