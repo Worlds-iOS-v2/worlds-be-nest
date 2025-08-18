@@ -4,7 +4,7 @@ import { CreateUserDto } from './dto/CreateUserDto';
 import { SignInDto } from './dto/SignInDto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { Request as ExpressRequest } from 'express';
-import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiProperty, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { UpdatePasswordDto } from './dto/UpdatePasswordDto';
 import { FindEmailDto } from './dto/FindEmailDto';
 import { CheckEmailDto } from './dto/CheckEmailDto';
@@ -14,6 +14,7 @@ import { HttpExceptionFilter } from 'src/common/interceptor/http-exception.filte
 import { VerifyCodeDto } from './dto/VerifyCodeDto';
 import { ResetPasswordDto } from './dto/ChangePasswordDto';
 import { GetUserInfoDto } from './dto/GetUserInfoDto';
+import { SetProfileImageDto } from './dto/SetProfileImageDto';
 
 @ApiTags('사용자')
 @Controller('auth')
@@ -174,5 +175,15 @@ export class AuthController {
   async getAttendanceDates(@Request() req: ExpressRequest) {
     const userId = (req.user as any).id;
     return this.authService.getAttendanceDates(userId);
+  }
+
+  // 사용자 프로필 이미지 설정
+  @Post('profile-image')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: '사용자 프로필 이미지 설정' })
+  @ApiResponse({ status: 200, description: '프로필 이미지 설정 성공'})
+  async setProfileImage(@Request() req: ExpressRequest, @Body() image: SetProfileImageDto) {
+    const userId = (req.user as any).id;
+    return this.authService.setProfileImage(userId, image)
   }
 }

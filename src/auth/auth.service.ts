@@ -14,6 +14,9 @@ import { format } from 'date-fns';
 import { MailerService } from '@nestjs-modules/mailer';
 import { VerifyCodeDto } from './dto/VerifyCodeDto';
 import { ResetPasswordDto } from './dto/ChangePasswordDto';
+import { SetProfileImageDto } from './dto/SetProfileImageDto';
+import { ProfileImage } from 'src/common/enums/profile-image.enum';
+import { PROFILE_PRESETS } from 'src/common/constants/profile-Images';
 
 @Injectable()
 export class AuthService {
@@ -99,28 +102,31 @@ export class AuthService {
     // 이메일 중복 확인
     async checkEmailAndSendVerification(email: string) {
         const trimEmail = email.toLowerCase().trim();
-
-        const isExisted = await this.prisma.users.findFirst({
-            where: {
-                userEmail: trimEmail,
-            }
-        })
-
-        if (isExisted) {
-            throw new BadRequestException({
-                message: ['이미 존재하는 이메일입니다.'],
-                error: 'BadRequest',
-                statusCode: 400,
-            })
+      
+        // 실제 유저만 중복으로 간주 (임시 유저: userName === '')
+        const realUser = await this.prisma.users.findFirst({
+          where: {
+            userEmail: trimEmail,
+            isDeleted: false,
+            userName: { not: '' }, // 임시 유저는 userName === ''
+          },
+          select: { id: true },
+        });
+      
+        if (realUser) {
+          throw new BadRequestException({
+            message: ['이미 존재하는 이메일입니다.'],
+            error: 'BadRequest',
+            statusCode: 400,
+          });
         }
-
+      
         await this.sendVerificationEmail(trimEmail);
-
         return {
-            message: '사용 가능한 이메일입니다. 메일함을 확인해주세요.',
-            statusCode: 200,
-        }
-    }
+          message: '사용 가능한 이메일입니다. 메일함을 확인해주세요.',
+          statusCode: 200,
+        };
+      }
 
     // signin
     async signIn(signinform: SignInDto) {
@@ -935,6 +941,7 @@ export class AuthService {
             };
         } catch (error) {
             this.logger.error('인증번호 전송 오류: ', error)
+            console.log('인증번호 전송 오류: ', error)
 
             throw new InternalServerErrorException({
                 message: ['이메일 인증 번호 전송에 실패했습니다. 다시 시도해주세요.'],
@@ -1000,6 +1007,43 @@ export class AuthService {
         return {
             message: '인증이 완료되었습니다.',
             statusCode: 200,
+        }
+    }
+
+    // 사용자 프로필 이미지 저장/변경
+    async setProfileImage(userId: number, setprofileform: SetProfileImageDto) {
+        try {
+            const NUMBER_TO_PRESET: Record<number, ProfileImage> = {
+                1: ProfileImage.HIMCHAN,
+                2: ProfileImage.DORAN,
+                3: ProfileImage.MALGEUM,
+                4: ProfileImage.SANEGGAK,
+            };
+            const preset = NUMBER_TO_PRESET[setprofileform.image]
+
+            const user = await this.prisma.users.update({
+                where: {
+                    id: userId
+                },
+                data: {
+                    profileImage: preset
+                }
+            })
+
+            return {
+                message: '프로필 이미지 설정 성공',
+                statusCode: 200,
+                profileImage: user.profileImage,
+                profileImageUrl: PROFILE_PRESETS[preset]
+            }
+        } catch (error) {
+            this.logger.error('프로필 이미지 설정 실패: ', error)
+
+            throw new InternalServerErrorException({
+                message: ['이미지 설정 오류 발생'],
+                error: 'InternalServerError',
+                statusCode: 500
+            })
         }
     }
 }
