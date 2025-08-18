@@ -54,22 +54,6 @@ export class CreateUserDto {
     })
     isMentor: boolean;
 
-    @IsOptional()
-    @IsString()
-    @Matches(
-        /^(?!^[A-Z]+$)(?!^[0-9]+$)(?!^[^A-Z0-9]+$){6}$/,
-        {
-          message:
-            '멘토 코드가 유효하지 않습니다. 6자의 대문자와 숫자 조합이어야 합니다.',
-        },
-      )
-    @ApiProperty({
-        description: 'allowed mentor code : optional',
-        example: 'H23E23',
-        required: false,
-    })
-    mentorCode?: string;
-
     @IsString()
     @IsNotEmpty({ message: '번역할 언어는 필수 입력 항목입니다.' })
     @ApiProperty({

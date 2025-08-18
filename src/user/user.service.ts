@@ -1,4 +1,4 @@
-import { BadRequestException, HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, HttpException, HttpStatus, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 import * as bcrypt from 'bcrypt';
@@ -136,11 +136,38 @@ export class UserService {
         return user;
     }
 
+    // 비밀번호 찾기용 이메일 검증
+    async findUserForPasswordReset(email: string) {
+        const trimEmail = email.toLowerCase().trim();
+
+        const user = await this.prisma.users.findFirst({
+            where: {
+                userEmail: trimEmail,
+                isDeleted: false,
+            },
+            select: {
+                id: true,
+                passwordHash: true,
+            }
+        })
+
+        if (!user) {
+            throw new NotFoundException({
+                message: ['사용자를 찾을 수 없습니다. 올바른 이메일을 입력해주세요.'],
+                error: 'NotFound',
+                statusCode: 404,
+            })
+        }
+
+        return user;
+    }
+
     // 비밀번호 일치하는지 확인
     async comparePassword(plainPWD: string, hashedPWD: string): Promise<boolean> {
         return bcrypt.compare(plainPWD, hashedPWD);
     }
 
+    // 유저 차단
     async blockUser(userId: number) {
         const user = await this.prisma.users.findUnique({
             where: {
