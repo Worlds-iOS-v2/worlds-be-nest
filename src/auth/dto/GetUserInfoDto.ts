@@ -18,9 +18,6 @@ export class UserInfoDto {
 
     @ApiProperty({ example: 0, description: '신고 횟수' })
     reportCount: number;
-
-    @ApiProperty({ example: [], description: '번역 기록', type: [Object] })
-    menteeTranslations: any[];
 }
 
 export class GetUserInfoDto {

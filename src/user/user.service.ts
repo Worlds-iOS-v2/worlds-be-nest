@@ -61,7 +61,6 @@ export class UserService {
                 birthday: true,
                 isMentor: true,
                 reportCount: true,
-                menteeTranslations: true,
             }
         })
     }
