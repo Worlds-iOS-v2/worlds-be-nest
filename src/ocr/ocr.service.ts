@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from 'src/prisma/prisma.service';
 import axios from 'axios';
@@ -8,6 +8,7 @@ import { Express } from 'express';
 @Injectable()
 export class OcrService {
     private client: AzureOpenAI;
+    private logger = new Logger();
 
     constructor(
         private readonly configService: ConfigService,
@@ -391,37 +392,37 @@ export class OcrService {
             const targetLanguage = user.targetLanguage;
             const problem: string[] = requestUser.originalText;
 
-            // // 민감한 단어들을 대체하는 함수
-            // const sanitizeText = (text: string[]) => {
-            //     return text.map(line =>
-            //         line.replace(/제모/g, '모발 제거')
-            //             .replace(/hair removal/g, '모발 제거')
-            //             .replace(/removal/g, '제거')
-            //             .replace(/정벌/g, '정복')
-            //             .replace(/대결/g, '대립')
-            //             .replace(/conquest/g, '정복')
-            //             .replace(/혁명/g, '개혁')
-            //             .replace(/독립/g, '자립')
-            //             .replace(/반대/g, '거부')
-            //             .replace(/revolution/g, '개혁')
-            //             .replace(/independence/g, '자립')
-            //             .replace(/반일/g, '대외 관계')
-            //             .replace(/민족/g, '국민')
-            //             .replace(/통합/g, '연합')
-            //     );
-            // };
+            // 민감한 단어들을 대체하는 함수
+            const sanitizeText = (text: string[]) => {
+                return text.map(line =>
+                    line.replace(/제모/g, '모발 제거')
+                        .replace(/hair removal/g, '모발 제거')
+                        .replace(/removal/g, '제거')
+                        .replace(/정벌/g, '정복')
+                        .replace(/대결/g, '대립')
+                        .replace(/conquest/g, '정복')
+                        .replace(/혁명/g, '개혁')
+                        .replace(/독립/g, '자립')
+                        .replace(/반대/g, '거부')
+                        .replace(/revolution/g, '개혁')
+                        .replace(/independence/g, '자립')
+                        .replace(/반일/g, '대외 관계')
+                        .replace(/민족/g, '국민')
+                        .replace(/통합/g, '연합')
+                );
+            };
 
-            // const sanitizedProblem = sanitizeText(problem);
+            const sanitizedProblem = sanitizeText(problem);
 
             console.log('원본 텍스트:', problem);
-            // console.log('정제된 텍스트:', sanitizedProblem);
+            console.log('정제된 텍스트:', sanitizedProblem);
 
             const questionPrompt = `
             You are a helpful assistant for elementary school students who need problem explanations translated into ${targetLanguage}.
             Please describe the problem in a way that is easy to understand for elementary school students.
 
             Given the following problem:
-            ${problem.join('\n')}
+            ${sanitizedProblem.join('\n')}
             
             Please provide:
             1. A detailed explanation of the problem in ${targetLanguage} (within 300 characters)
@@ -445,7 +446,7 @@ export class OcrService {
                 },
                 {
                     "role": "user",
-                    "content": `Hello, im a student and i need help understanding the problem ${problem.join('\n')} 
+                    "content": `Hello, im a student and i need help understanding the problem ${sanitizedProblem.join('\n')} 
                                 and i need to know the key concepts of the problem.
                         `
                 }
@@ -522,6 +523,8 @@ export class OcrService {
                 summary: gptResponse.summary,
             }
         } catch (error) {
+            this.logger.error('Solution 요청 실패: ', error)
+
             throw new BadRequestException({
                 message: ['Solution 요청 실패'],
                 error: 'BadRequest',
@@ -529,5 +532,27 @@ export class OcrService {
             });
         }
     }
+    
+    async getMyOcr(userId: number) {
+        const ocrRecords = await this.prisma.translations.findMany({
+            where: {
+                menteeId: userId
+            },
+            select: {
+                originalText: true,
+                translatedText: true,
+                keyConcept: true,
+                solution: true,
+                summary: true
+            }
+        })
 
+        console.log(ocrRecords)
+
+        return {
+            message: 'OCR 기록 조회 성공',
+            statusCode: 200,
+            records: ocrRecords
+        }
+    }
 }

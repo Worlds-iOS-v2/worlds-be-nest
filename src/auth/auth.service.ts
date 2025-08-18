@@ -527,8 +527,8 @@ export class AuthService {
             },
             take: 14
         })
-        
-        const dates = attendanceDates.map(date => 
+
+        const dates = attendanceDates.map(date =>
             format(new Date(date.createdAt), 'yyyy-MM-dd')
         )
 

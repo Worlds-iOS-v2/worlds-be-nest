@@ -8,6 +8,7 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import { Express } from 'express';
 import { ResponseInterceptor } from 'src/common/interceptor/response.interceptor';
 import { HttpExceptionFilter } from 'src/common/interceptor/http-exception.filter';
+import { GetOcrRecordsDto } from './dto/GetOcrRecordsDto';
 
 @Controller('ocr')
 @ApiTags('문제 분석 및 요약')
@@ -112,5 +113,14 @@ export class OcrController {
   async solution(@Request() req: ExpressRequest) {
     const userId = (req.user as any).id;
     return this.ocrService.solution(userId);
+  }
+
+  @Get('my')
+  @ApiOperation({ summary: '내 OCR 기록 조회'})
+  @ApiResponse({ status: 200, description: 'OCR 기록 조회 성공', type: GetOcrRecordsDto})
+  @UseGuards(JwtAuthGuard)
+  async getOcrRecords(@Request() req: ExpressRequest) {
+    const userId = (req.user as any).id;
+    return this.ocrService.getMyOcr(userId);
   }
 }
