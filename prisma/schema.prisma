@@ -12,7 +12,7 @@ model Users {
   id               Int               @id @default(autoincrement())
   userName         String
   userEmail        String            @unique
-  birthday         DateTime
+  birthday         String
   passwordHash     String
   isMentor         Boolean           @default(false)
   reportCount      Int               @default(0)
