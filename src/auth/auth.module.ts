@@ -25,7 +25,7 @@ import { MAILER_OPTIONS, MailerModule, MailerService } from '@nestjs-modules/mai
           secure: true
         },
         defaults: {
-          from: 'World Study <worldstudy@noreply.com>'
+          from: `World Study <${process.env.EMAIL_FROM}>`
         },
       }),
     }),
@@ -41,5 +41,5 @@ import { MAILER_OPTIONS, MailerModule, MailerService } from '@nestjs-modules/mai
   controllers: [AuthController],
   providers: [AuthService, PrismaService, JwtStrategy],
 })
-export class AuthModule {}
+export class AuthModule { }
 

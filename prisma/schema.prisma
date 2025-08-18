@@ -18,7 +18,7 @@ model Users {
   reportCount      Int               @default(0)
   refreshToken     String
   targetLanguage   String
-  profileImage     String?
+  profileImage     ProfileImage?
   isDeleted        Boolean?
   WithdrawalReason WithdrawalReason?
   isBlocked        Boolean           @default(false)
@@ -54,6 +54,13 @@ enum WithdrawalReason {
   low_usage
   service_issue
   other
+}
+
+enum ProfileImage {
+  himchan
+  doran
+  malgeum
+  saengak
 }
 
 // 번역 및 분석
