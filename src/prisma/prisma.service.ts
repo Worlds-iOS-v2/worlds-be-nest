@@ -9,6 +9,10 @@ export class PrismaService
   async onModuleInit() {
     // 임시로 데이터베이스 연결 비활성화
     await this.$connect();
+    
+    // 데이터베이스 시간대를 한국시간으로 설정
+    await this.$executeRaw`SET timezone = 'Asia/Seoul'`;
+    
     console.log('Prisma 연결 완료');
   }
 

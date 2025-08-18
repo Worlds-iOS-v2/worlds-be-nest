@@ -7,11 +7,28 @@ import { AuthController } from './auth.controller';
 import { PrismaService } from '../prisma/prisma.service';
 import { UserModule } from '../user/user.module';
 import { JwtStrategy } from './jwt.strategy';
+import { MAILER_OPTIONS, MailerModule, MailerService } from '@nestjs-modules/mailer';
 
 @Module({
   imports: [
     UserModule,
     PassportModule,
+    MailerModule.forRootAsync({
+      useFactory: () => ({
+        transport: {
+          host: 'smtp.gmail.com',
+          port: 465,
+          auth: {
+            user: process.env.EMAIL_FROM,
+            pass: process.env.EMAIL_APPKEY
+          },
+          secure: true
+        },
+        defaults: {
+          from: 'World Study <worldstudy@noreply.com>'
+        },
+      }),
+    }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
