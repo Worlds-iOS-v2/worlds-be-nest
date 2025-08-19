@@ -4,6 +4,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import axios from 'axios';
 import { AzureOpenAI } from 'openai';
 import { Express } from 'express';
+import { GetOcrRecordsDto, OcrRecordDto } from './dto/GetOcrRecordsDto';
 
 @Injectable()
 export class OcrService {
@@ -533,26 +534,45 @@ export class OcrService {
         }
     }
     
-    async getMyOcr(userId: number) {
+    async getMyOcr(userId: number): Promise<OcrRecordDto[]> {
         const ocrRecords = await this.prisma.translations.findMany({
             where: {
                 menteeId: userId
             },
-            select: {
-                originalText: true,
-                translatedText: true,
-                keyConcept: true,
-                solution: true,
-                summary: true
+            orderBy: {
+                createdAt: 'desc'
             }
         })
 
-        console.log(ocrRecords)
-
-        return {
-            message: 'OCR 기록 조회 성공',
-            statusCode: 200,
-            records: ocrRecords
+        const user = await this.prisma.users.findUnique({
+            where: { id: userId },
+            select: {
+                id: true,
+                userName: true,
+                userEmail: true,
+            }
+        })
+        if (!user) {
+            throw new UnauthorizedException({
+                message: ['사용자를 찾을 수 없습니다.'],
+                error: 'Unauthorized',
+                statusCode: 401
+            })
         }
+
+        return ocrRecords.map((record) => ({
+            id: record.id,
+            originalText: record.originalText,
+            translatedText: record.translatedText,
+            createdAt: record.createdAt,
+            keyConcept: record.keyConcept,
+            solution: record.solution,
+            summary: record.summary,
+            user: {
+                id: user.id,
+                user_name: user.userName,
+                user_email: user.userEmail,
+            }
+        }))
     }
 }
