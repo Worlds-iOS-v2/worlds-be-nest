@@ -1,4 +1,4 @@
-name: Deploy develop to Azure Web App (worldstudy-lsh slot)
+name: Deploy develop to Azure Web App (lsh slot)
 
 on:
   push:
@@ -32,8 +32,8 @@ jobs:
       - name: Pack runtime artifacts
         run: |
           zip -r release.zip dist node_modules package.json package-lock.json
-
-      - name: Deploy to Azure Web App (slot: worldstudy-lsh)
+  
+      - name: Deploy to Azure Web App slot worldstudy-lsh
         uses: azure/webapps-deploy@v3
         with:
           app-name: worldstudy
