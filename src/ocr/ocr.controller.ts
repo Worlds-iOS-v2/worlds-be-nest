@@ -12,7 +12,6 @@ import { GetOcrRecordsDto } from './dto/GetOcrRecordsDto';
 
 @Controller('ocr')
 @ApiTags('문제 분석 및 요약')
-@UseInterceptors(ResponseInterceptor)
 @UseFilters(HttpExceptionFilter)
 @ApiBearerAuth()
 export class OcrController {
@@ -40,6 +39,7 @@ export class OcrController {
     }),
     AzureStorageInterceptor,
   )
+  @UseInterceptors(ResponseInterceptor)
   @ApiOperation({ summary: 'OCR 요청' })
   @ApiResponse({ status: 200, description: 'OCR 요청 성공' })
   @ApiConsumes('multipart/form-data')
@@ -84,6 +84,7 @@ export class OcrController {
     }),
     AzureStorageInterceptor,
   )
+  @UseInterceptors(ResponseInterceptor)
   @ApiOperation({ summary: 'OCR 요청' })
   @ApiResponse({ status: 200, description: 'OCR 요청 성공' })
   @ApiConsumes('multipart/form-data')
@@ -107,6 +108,7 @@ export class OcrController {
   }
 
   @Get('solution')
+  @UseInterceptors(ResponseInterceptor)
   @ApiOperation({ summary: 'Solution 요청' })
   @ApiResponse({ status: 200, description: 'Solution 요청 성공' })
   @UseGuards(JwtAuthGuard)

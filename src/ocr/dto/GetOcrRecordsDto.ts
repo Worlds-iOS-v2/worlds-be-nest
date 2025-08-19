@@ -1,8 +1,12 @@
 import { ApiProperty } from "@nestjs/swagger";
 
 export class OcrRecordDto {
+
+    @ApiProperty({ description: 'OCR ID', example: 1 })
+    id: number;
+
     @ApiProperty({
-        example: [
+        description: 'OCR 인식 결과', example: [
             "4. (가) 왕이 실시한 정책으로 옳은 것은? [3점]",
             "0 신라왕 김 부가 귀순해 오자, (가) 우는 그를 경주의",
             "사심관으로 삼아 부호장 이하 항리들에 대한 사무를 관장",
@@ -16,13 +20,12 @@ export class OcrRecordDto {
             "㉦ 과거제를 폐지하였다",
             "㉦ 별무반을 조직하였다-",
             "丘 정방을 설치하였다-"
-        ],
-        description: "OCR 인식 결과"
+        ]
     })
     originalText: string[]
 
     @ApiProperty({
-        example: [
+        description: 'OCR 텍스트 번역 결과', example: [
             "4. (a) What is the right policy implemented by the king? [3 points]",
             "0 When King Kim Bu of Silla came to submit to him, he cried and asked him to go to Gyeongju.",
             "He is appointed as a private judge and is in charge of affairs for the hang-ri below the head of the body.",
@@ -36,40 +39,39 @@ export class OcrRecordDto {
             "The past tense was abolished",
             "organized a separate group-",
             "The hill was set up-"
-        ],
-        description: "OCR 텍스트 번역 결과"
+        ]
     })
     translatedText: string[]
 
-    @ApiProperty({
-        example: "Goryeo",
-        description: "문제 핵심 개념"
-    })
+    @ApiProperty({ description: '실행일자', example: '2024-07-23T00:00:00Z' })
+    createdAt: Date;
+
+    @ApiProperty({ description: '문제 핵심 개념', example: 'Goryeo' })
     keyConcept: string
 
-    @ApiProperty({
-        example: "The question describes a king who set up local supervisors (sasim-gwan) and issued 10 teaching rules ending with “keep it in your heart.” This king is Gwangjong of Goryeo. Among the options, the correct policy he carried out was operating the hostage system (기인 제도).",
-        description: "문제 해설"
-    })
+    @ApiProperty({ description: '문제 해설', example: 'The question describes a king who set up local supervisors (sasim-gwan) and issued 10 teaching rules ending with "keep it in your heart." This king is Gwangjong of Goryeo. Among the options, the correct policy he carried out was operating the hostage system (기인 제도).' })
     solution: string
 
-    @ApiProperty({
-        example: "Identify King (가) as Gwangjong by his reforms, then pick the policy he implemented.",
-        description: "문제 요약"
-    })
+    @ApiProperty({ description: '문제 요약', example: 'Identify King (가) as Gwangjong by his reforms, then pick the policy he implemented.' })
     summary: string
+
+    @ApiProperty({
+        description: '작성자 정보',
+        example: {
+            id: 1,
+            user_name: 'ohaii',
+            user_email: 'o@example.com',
+            user_role: true,
+        },
+    })
+    user: {
+        id: number;
+        user_name: string;
+        user_email: string;
+    };
 }
 
 export class GetOcrRecordsDto {
-    @ApiProperty({ example: 'OCR 기록 조회 성공' })
-    message: string
-
-    @ApiProperty({ example: 200 })
-    statusCode: number
-
-    @ApiProperty({
-        type: [OcrRecordDto],
-        description: 'OCR 및 문제 분석 내용 조회'
-    })
+    @ApiProperty({ type: [OcrRecordDto], description: 'OCR 및 문제 분석 내용 조회' })
     records: OcrRecordDto[]
 }

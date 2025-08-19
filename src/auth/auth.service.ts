@@ -13,10 +13,13 @@ import { DeleteUserDto } from './dto/DeleteUserDto';
 import { format } from 'date-fns';
 import { MailerService } from '@nestjs-modules/mailer';
 import { VerifyCodeDto } from './dto/VerifyCodeDto';
-import { ResetPasswordDto } from './dto/ChangePasswordDto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SetProfileImageDto } from './dto/SetProfileImageDto';
 import { ProfileImage } from 'src/common/enums/profile-image.enum';
-import { PROFILE_PRESETS } from 'src/common/constants/profile-Images';
+import { PROFILE_IMAGES } from 'src/common/constants/profile-Images';
+import { CommonResponseDto } from 'src/common/dto/CommonResponseDto';
+import { RequestResetPasswordDto } from './dto/RequestResetPasswordDto';
+import { GetNewAccesstokenDto } from './dto/GetNewAccesstokenDto';
 
 @Injectable()
 export class AuthService {
@@ -30,7 +33,7 @@ export class AuthService {
     ) { }
 
     // 회원가입
-    async signUp(signupform: CreateUserDto) {
+    async signUp(signupform: CreateUserDto): Promise<CommonResponseDto> {
         this.logger.log('회원가입 시작');
         const trimEmail = signupform.userEmail.toLowerCase().trim();
         const birthday = format(new Date(signupform.userBirth), 'yyyy-MM-dd')
@@ -100,7 +103,7 @@ export class AuthService {
     }
 
     // 이메일 중복 확인
-    async checkEmailAndSendVerification(email: string) {
+    async checkEmailAndSendVerification(email: string): Promise<CommonResponseDto> {
         const trimEmail = email.toLowerCase().trim();
       
         // 실제 유저만 중복으로 간주 (임시 유저: userName === '')
@@ -200,7 +203,7 @@ export class AuthService {
     }
 
     // 비밀번호 검증 및 변경 - 로그인했을 때
-    async updatePassword(userId: number, updatepasswordform: UpdatePasswordDto) {
+    async updatePassword(userId: number, updatepasswordform: UpdatePasswordDto): Promise<CommonResponseDto> {
         const user = await this.userService.findUserForResetPassword(userId);
         if (!user) {
             throw new UnauthorizedException({
@@ -249,15 +252,16 @@ export class AuthService {
     }
 
     // 리프레시 토큰 검증 + 액세스 토큰 재발급
-    async validateRefreshToken(token: string) {
+    async validateRefreshToken(getnewaccesstokenform: GetNewAccesstokenDto) {
+        const token = getnewaccesstokenform.refreshToken
         try {
-            // 1. JWT 검증
+            // JWT 검증
             const decoded = this.jwtService.verify(token, {
                 secret: this.config.get('JWT_SECRET'),
             })
             const user = await this.userService.findUserForTokenRefresh(decoded.sub);
 
-            // 2. 토큰 타입 검증
+            // 토큰 타입 검증
             if (decoded.type !== 'refresh') {
                 throw new UnauthorizedException({
                     message: ['Refresh token이 아닙니다.'],
@@ -266,7 +270,7 @@ export class AuthService {
                 });
             }
 
-            // 3. 사용자 존재 및 토큰 검증
+            // 용자 존재 및 토큰 검증
             if (!user || !user.refreshToken || user.refreshToken === '') {
                 throw new UnauthorizedException({
                     message: ['사용자 또는 토큰을 찾을 수 없습니다.'],
@@ -319,7 +323,7 @@ export class AuthService {
     }
 
     // 로그아웃
-    async logout(userId: number) {
+    async logout(userId: number): Promise<CommonResponseDto> {
         console.log('로그아웃 시작 - userId:', userId);
 
         // 로그아웃 전 refresh token 확인
@@ -430,7 +434,7 @@ export class AuthService {
     }
 
     // 탈퇴 회원 재가입
-    async reactivateUser(userId: number, signupform: CreateUserDto) {
+    async reactivateUser(userId: number, signupform: CreateUserDto): Promise<CommonResponseDto> {
         const salt = parseInt(this.config.get('SALT_ROUNDS') || '10');
         const hashedPassword = await bcrypt.hash(signupform.password, salt);
         const trimEmail = signupform.userEmail.toLowerCase().trim();
@@ -459,7 +463,7 @@ export class AuthService {
     }
 
     // 출석 체크
-    async checkAttendance(userId: number) {
+    async checkAttendance(userId: number): Promise<CommonResponseDto> {
         const user = await this.userService.findUserById(userId);
 
         if (!user) {
@@ -546,10 +550,10 @@ export class AuthService {
     }
 
     // 비밀번호 찾기 - 로그인 안했을 때
-    async requestPasswordReset(email: string) {
-        const trimEmail = email.toLowerCase().trim();
+    async requestPasswordReset(requestpasswordresetform: RequestResetPasswordDto): Promise<CommonResponseDto> {
+        const trimEmail = requestpasswordresetform.email.toLowerCase().trim();
 
-        const user = await this.userService.findUserForPasswordReset(email);
+        const user = await this.userService.findUserForPasswordReset(trimEmail);
         if (!user) {
             throw new UnauthorizedException({
                 message: ['이메일을 찾을 수 없습니다. 이메일을 확인해주세요.'],
@@ -578,7 +582,7 @@ export class AuthService {
     }
 
     // 비밀번호 변경
-    async changePassword(changepasswordform: ResetPasswordDto) {
+    async changePassword(changepasswordform: ResetPasswordDto): Promise<CommonResponseDto> {
         const trimEmail = changepasswordform.email.toLowerCase().trim();
 
         const user = await this.userService.findUserForPasswordReset(trimEmail);
@@ -625,7 +629,7 @@ export class AuthService {
     }
 
     // 이메일 인증 코드 전송
-    async sendVerificationEmail(email: string) {
+    async sendVerificationEmail(email: string): Promise<CommonResponseDto>{
         const temporaryCode = this.generateTemporaryCode();
         const expirationTime = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
         const fromemail = this.config.get('EMAIL_FROM');
@@ -957,7 +961,7 @@ export class AuthService {
     }
 
     // 이메일 인증 번호 검증
-    async verifyCode(verifycodeform: VerifyCodeDto) {
+    async verifyCode(verifycodeform: VerifyCodeDto): Promise<CommonResponseDto> {
         const trimEmail = verifycodeform.email.toLowerCase().trim();
         const trimCode = verifycodeform.verificationCode.toUpperCase().trim();
 
@@ -1013,13 +1017,13 @@ export class AuthService {
     // 사용자 프로필 이미지 저장/변경
     async setProfileImage(userId: number, setprofileform: SetProfileImageDto) {
         try {
-            const NUMBER_TO_PRESET: Record<number, ProfileImage> = {
+            const NUMBER_TO_ENUM: Record<number, ProfileImage> = {
                 1: ProfileImage.HIMCHAN,
                 2: ProfileImage.DORAN,
                 3: ProfileImage.MALGEUM,
                 4: ProfileImage.SANEGGAK,
             };
-            const preset = NUMBER_TO_PRESET[setprofileform.image]
+            const preset = NUMBER_TO_ENUM[setprofileform.image]
 
             const user = await this.prisma.users.update({
                 where: {
@@ -1034,7 +1038,7 @@ export class AuthService {
                 message: '프로필 이미지 설정 성공',
                 statusCode: 200,
                 profileImage: user.profileImage,
-                profileImageUrl: PROFILE_PRESETS[preset]
+                profileImageUrl: PROFILE_IMAGES[preset]
             }
         } catch (error) {
             this.logger.error('프로필 이미지 설정 실패: ', error)
