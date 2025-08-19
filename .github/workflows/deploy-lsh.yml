@@ -1,10 +1,9 @@
-name: Deploy develop (lsh)
+name: Deploy develop to Azure Web App (lsh slot)
 
 on:
   push:
-    branches:
-      - develop
-  workflow_dispatch:
+    branches: [ develop ]
+  workflow_dispatch: {}
 
 jobs:
   deploy:
@@ -17,11 +16,17 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
-      - run: npm ci
-      - run: npm run build
-      - run: zip -r release.zip dist package.json package-lock.json
+      - name: Install
+        run: npm ci
 
-      - uses: azure/webapps-deploy@v3
+      - name: Build (Nest -> dist)
+        run: npm run build
+
+      - name: Package for Azure
+        run: zip -r release.zip dist package.json package-lock.json prisma || true
+
+      - name: Deploy to Azure Web App (slot: lsh)
+        uses: azure/webapps-deploy@v3
         with:
           app-name: worldstudy
           slot-name: lsh
