@@ -6,12 +6,15 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node 22
+        uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
@@ -23,9 +26,10 @@ jobs:
         run: npm run build
 
       - name: Package for Azure
-        run: zip -r release.zip dist package.json package-lock.json prisma || true
+        # prisma 폴더까지 함께 압축 (마이그레이션/프리즈마 스키마 필요시)
+        run: zip -r release.zip dist package.json package-lock.json prisma
 
-      - name: Deploy to Azure Web App (slot: lsh)
+      - name: "Deploy to Azure Web App (slot: lsh)"
         uses: azure/webapps-deploy@v3
         with:
           app-name: worldstudy
