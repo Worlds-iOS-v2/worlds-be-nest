@@ -19,17 +19,21 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
-      - name: Install
+      - name: Install deps (with dev)
         run: npm ci
 
       - name: Build (Nest -> dist)
         run: npm run build
 
-      - name: Package for Azure
-        # prisma 폴더까지 함께 압축 (마이그레이션/프리즈마 스키마 필요시)
-        run: zip -r release.zip dist package.json package-lock.json prisma
+      # 런타임에는 devDeps 불필요 → 용량 줄이기
+      - name: Prune dev deps
+        run: npm prune --omit=dev
 
-      - name: "Deploy to Azure Web App (slot: lsh)"
+      - name: Pack runtime artifacts
+        run: |
+          zip -r release.zip dist node_modules package.json package-lock.json
+
+      - name: Deploy to Azure Web App (slot: lsh)
         uses: azure/webapps-deploy@v3
         with:
           app-name: worldstudy
