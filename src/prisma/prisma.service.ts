@@ -7,13 +7,14 @@ export class PrismaService
   implements OnModuleInit, OnModuleDestroy
 {
   async onModuleInit() {
-    // 임시로 데이터베이스 연결 비활성화
-    await this.$connect();
-    
-    // 데이터베이스 시간대를 한국시간으로 설정
-    await this.$executeRaw`SET timezone = 'Asia/Seoul'`;
-    
-    console.log('Prisma 연결 완료');
+    try {
+      await this.$connect();
+      await this.$executeRaw`SET TIME ZONE 'Asia/Seoul'`;
+      console.log('Prisma 연결 완료');
+    } catch (err) {
+      console.error('Prisma 초기화 실패:', err);
+      // process.exit(1); // 혹은 부팅은 유지하고자 하면 이 줄 제거
+    }
   }
 
   async onModuleDestroy() {

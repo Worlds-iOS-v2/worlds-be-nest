@@ -3,6 +3,7 @@ export interface AuthUser {
     userEmail: string;
     refreshToken: string;
     userName: string;
+    profileImage: string;
     isBlocked: boolean;
 }
 

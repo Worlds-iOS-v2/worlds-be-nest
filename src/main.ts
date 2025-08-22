@@ -16,7 +16,6 @@ async function bootstrap() {
     .setDescription('World Study API 명세서')
     .setVersion('1.0')
     .addBearerAuth()
-    .addTag('questions')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

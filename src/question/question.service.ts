@@ -10,66 +10,66 @@ import { UserService } from 'src/user/user.service';
 @Injectable()
 export class QuestionService {
   [x: string]: any;
-    constructor(private readonly prisma: PrismaService,
-      private readonly userService: UserService,
-    ) {}
+  constructor(private readonly prisma: PrismaService,
+    private readonly userService: UserService,
+  ) { }
 
-    //질문 생성
-    async createQuestion(
-        createQuestionDto: CreateQuestionDto,
-        userId: number,
-        imageUrls?: string[],
-    ) {
-        const question = await this.prisma.question.create({
-            data: {
-                title: createQuestionDto.title,
-                content: createQuestionDto.content,
-                category: createQuestionDto.category,
-                user: { connect: { id: userId } },
-                attachments: imageUrls ? { create: imageUrls.map(url => ({ url })) } : undefined,
-            },
-            include: { attachments: true },
-        });
+  //질문 생성
+  async createQuestion(
+    createQuestionDto: CreateQuestionDto,
+    userId: number,
+    imageUrls?: string[],
+  ) {
+    const question = await this.prisma.question.create({
+      data: {
+        title: createQuestionDto.title,
+        content: createQuestionDto.content,
+        category: createQuestionDto.category,
+        user: { connect: { id: userId } },
+        attachments: imageUrls ? { create: imageUrls.map(url => ({ url })) } : undefined,
+      },
+      include: { attachments: true },
+    });
 
-        return question;
+    return question;
 
-    }
+  }
 
-    //질문 목록 조회
-    async getQuestionList(category?: Category): Promise<ListQuestionDto[]> {
-  const questions = await this.prisma.question.findMany({
-    where: {
-      isDeleted: false,
-      ...(category && { category }),
-    },
-    include: {
-      comments: true,
-      user: true,
-    },
-    orderBy: {
-      createdAt: 'desc',
-    },
-  });
+  //질문 목록 조회
+  async getQuestionList(category?: Category): Promise<ListQuestionDto[]> {
+    const questions = await this.prisma.question.findMany({
+      where: {
+        isDeleted: false,
+        ...(category && { category }),
+      },
+      include: {
+        comments: true,
+        user: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
 
-  return questions.map((q) => ({
-    id: q.id,
-    title: q.title,
-    content: q.content,
-    category: q.category as Category,
-    createdAt: q.createdAt,
-    isAnswered: q.comments.length > 0,
-    answerCount: q.comments.length,
-    user: {
-      id: q.user.id,
-      user_name: q.user.userName,
-      user_email: q.user.userEmail,
-      user_role: q.user.isMentor,
-    },
-  }));
-}
+    return questions.map((q) => ({
+      id: q.id,
+      title: q.title,
+      content: q.content,
+      category: q.category as Category,
+      createdAt: q.createdAt,
+      isAnswered: q.comments.length > 0,
+      answerCount: q.comments.length,
+      user: {
+        id: q.user.id,
+        user_name: q.user.userName,
+        user_email: q.user.userEmail,
+        user_role: q.user.isMentor,
+      },
+    }));
+  }
 
-    //질문 상세 조회
-    async getQuestionDetail(id: number): Promise<ResponseQuesitonDto> {
+  //질문 상세 조회
+  async getQuestionDetail(id: number): Promise<ResponseQuesitonDto> {
     const question = await this.prisma.question.findFirst({
       where: { id, isDeleted: false },
       include: {
@@ -96,8 +96,8 @@ export class QuestionService {
         user_name: question.user.userName,
         user_email: question.user.userEmail,
         user_role: question.user.isMentor,
-  },
-      
+      },
+
     };
   }
 
@@ -163,7 +163,7 @@ export class QuestionService {
 
   // 내 질문 조회
   // async getMyQuestions(userId: number): Promise<ListQuestionDto[]> {
-  
+
   async getMyQuestions(userId: number): Promise<Omit<ListQuestionDto, 'user'>[]> {
     const questions = await this.prisma.question.findMany({
       where: {

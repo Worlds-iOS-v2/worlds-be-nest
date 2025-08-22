@@ -6,26 +6,40 @@ import { Express } from 'express';
 
 @Injectable()
 export class AzureStorageService {
-  private readonly containerClient: ContainerClient;
+  private containerClient: ContainerClient | null = null;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(private readonly configService: ConfigService) {}
+
+  private ensureClient(): ContainerClient {
+    if (this.containerClient) {
+      return this.containerClient;
+    }
+
     const connectionString = this.configService.get(
       'AZURE_STORAGE_CONNECTION_STRING',
     );
     const containerName = this.configService.get(
       'AZURE_STORAGE_CONTAINER_NAME',
     );
-    console.log(connectionString);
+
+    if (!connectionString || !containerName) {
+      throw new Error('Azure Storage configuration missing: AZURE_STORAGE_CONNECTION_STRING and AZURE_STORAGE_CONTAINER_NAME are required');
+    }
+
+    console.log('Initializing Azure Storage client...');
     const blobServiceClient =
       BlobServiceClient.fromConnectionString(connectionString);
     this.containerClient = blobServiceClient.getContainerClient(containerName);
+    
+    return this.containerClient;
   }
 
   async uploadFile(
     file: Express.Multer.File,
   ): Promise<{ url: string; fileName: string }> {
+    const containerClient = this.ensureClient();
     const blobName = `${uuidv4()}-${file.originalname}`;
-    const blockBlobClient = this.containerClient.getBlockBlobClient(blobName);
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
     await blockBlobClient.uploadData(file.buffer, {
       blobHTTPHeaders: {
@@ -51,11 +65,12 @@ export class AzureStorageService {
   }
 
   async deleteFile(blobUrl: string): Promise<void> {
+    const containerClient = this.ensureClient();
     const blobName = new URL(blobUrl).pathname.split('/').pop();
     if (!blobName) {
       throw new Error('Invalid blob URL');
     }
-    const blobClient = this.containerClient.getBlockBlobClient(blobName);
+    const blobClient = containerClient.getBlockBlobClient(blobName);
     await blobClient.delete();
   }
 }
