@@ -178,13 +178,13 @@ export class AuthService {
             username: user.userName,
             profileImage: user.profileImage,
             access_token: token.accessToken,
-            refresh_token: user.refreshToken,
+            refresh_token: token.refreshToken,
         }
     }
 
     // 소셜로그인 - 애플
     async appleSignIn(applesigninform: AppleSigninDto) {
-        this.logger.log(`애플 로그인 시작 시작 - OAuth ID: ${applesigninform.oauthId}, Email: ${applesigninform.email || 'N/A'}`);
+        this.logger.log(`애플 로그인 시작 - OAuth ID: ${applesigninform.oauthId}, Email: ${applesigninform.email || 'N/A'}`);
         
         try {
             // 가입된 회원인지 아닌지
@@ -464,7 +464,7 @@ export class AuthService {
 
     // 애플 로그인 유저 검증
     async authenticateAppleUser(applesigninform: AppleSigninDto): Promise<AuthUser> {
-        this.logger.log(`[Apple Auth] 사용자 검증 시작 - OAuth ID: ${applesigninform.oauthId}`);
+        this.logger.log(`사용자 검증 시작 - OAuth ID: ${applesigninform.oauthId}`);
         
         try {
             // 애플 토큰 검증
