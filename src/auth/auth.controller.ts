@@ -18,6 +18,7 @@ import { SetProfileImageDto } from './dto/SetProfileImageDto';
 import { CommonResponseDto } from 'src/common/dto/CommonResponseDto';
 import { GetNewAccesstokenDto } from './dto/GetNewAccesstokenDto';
 import { RequestResetPasswordDto } from './dto/RequestResetPasswordDto';
+import { AppleSigninDto } from './dto/apple-signin.dto';
 
 @ApiTags('사용자')
 @Controller('auth')
@@ -51,6 +52,30 @@ export class AuthController {
   @ApiResponse({ status: 200, description: '로그인 성공' })
   async signIn(@Body() signinForm: SignInDto) {
     return this.authService.signIn(signinForm);
+  }
+
+  // 애플로그인
+  @Post('signin/apple')
+  @ApiOperation({ summary: '애플 로그인'})
+  @ApiResponse({ status: 200, description: '애플 로그인 성공'})
+  async appleSignIn(@Body() applesigninform: AppleSigninDto) {
+    console.log(`[Apple Sign-In Controller] 요청 시작 - OAuth ID: ${applesigninform.oauthId}, Email: ${applesigninform.email || 'N/A'}`);
+    const startTime = Date.now();
+    
+    try {
+      const result = await this.authService.appleSignIn(applesigninform);
+      const duration = Date.now() - startTime;
+      console.log(`[Apple Sign-In Controller] 성공 - OAuth ID: ${applesigninform.oauthId}, 소요시간: ${duration}ms`);
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      console.error(`[Apple Sign-In Controller] 실패 - OAuth ID: ${applesigninform.oauthId}, 소요시간: ${duration}ms`, {
+        errorName: error?.name,
+        errorMessage: error?.message,
+        statusCode: error?.statusCode
+      });
+      throw error;
+    }
   }
 
   // 로그아웃

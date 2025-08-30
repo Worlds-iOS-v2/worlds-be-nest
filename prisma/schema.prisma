@@ -12,8 +12,8 @@ model Users {
   id               Int               @id @default(autoincrement())
   userName         String
   userEmail        String            @unique
-  birthday         String
-  passwordHash     String
+  birthday         String?
+  passwordHash     String?
   isMentor         Boolean           @default(false)
   reportCount      Int               @default(0)
   refreshToken     String
@@ -22,6 +22,10 @@ model Users {
   isDeleted        Boolean?
   WithdrawalReason WithdrawalReason?
   isBlocked        Boolean           @default(false)
+
+  // 소셜로그인 관련 필드 추가
+  oauthProvider OAuthProvider? // "apple", "google", "kakao" 등
+  oauthId       String? // 소셜로그인 제공자의 고유 ID
 
   comments           Comment[]
   commentLikes       CommentLike[]
@@ -45,6 +49,18 @@ model Users {
 
   // 이메일 인증용 데이터
   emailVerifications EmailVerifications[]
+
+  // 복합 인덱스 추가 (성능 최적화)
+  @@unique([oauthProvider, oauthId])
+  @@index([userEmail])
+  @@index([oauthProvider, oauthId])
+}
+
+// 소셜로그인
+enum OAuthProvider {
+  apple
+  kakao
+  google
 }
 
 // 탈퇴 사유

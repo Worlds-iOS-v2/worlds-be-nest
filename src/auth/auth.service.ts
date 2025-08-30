@@ -20,6 +20,10 @@ import { PROFILE_IMAGES } from 'src/common/constants/profile-Images';
 import { CommonResponseDto } from 'src/common/dto/CommonResponseDto';
 import { RequestResetPasswordDto } from './dto/RequestResetPasswordDto';
 import { GetNewAccesstokenDto } from './dto/GetNewAccesstokenDto';
+import { JwksClient } from 'jwks-rsa'
+import * as jwt from 'jsonwebtoken'
+import { AppleSigninDto } from './dto/apple-signin.dto';
+import { OAuthProvider } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -105,44 +109,34 @@ export class AuthService {
     // 이메일 중복 확인
     async checkEmailAndSendVerification(email: string): Promise<CommonResponseDto> {
         const trimEmail = email.toLowerCase().trim();
-      
+
         // 실제 유저만 중복으로 간주 (임시 유저: userName === '')
         const realUser = await this.prisma.users.findFirst({
-          where: {
-            userEmail: trimEmail,
-            isDeleted: false,
-            userName: { not: '' }, // 임시 유저는 userName === ''
-          },
-          select: { id: true },
+            where: {
+                userEmail: trimEmail,
+                isDeleted: false,
+                userName: { not: '' }, // 임시 유저는 userName === ''
+            },
+            select: { id: true },
         });
-      
+
         if (realUser) {
-          throw new BadRequestException({
-            message: ['이미 존재하는 이메일입니다.'],
-            error: 'BadRequest',
-            statusCode: 400,
-          });
-        }
-      
-        await this.sendVerificationEmail(trimEmail);
-        return {
-          message: '사용 가능한 이메일입니다. 메일함을 확인해주세요.',
-          statusCode: 200,
-        };
-      }
-
-    // signin
-    async signIn(signinform: SignInDto) {
-        const user = await this.authenticateUser(signinform);
-
-        if (user.isBlocked) {
             throw new BadRequestException({
-                message: ['정지된 계정입니다. 관리자에게 문의해주세요.'],
+                message: ['이미 존재하는 이메일입니다.'],
                 error: 'BadRequest',
                 statusCode: 400,
             });
         }
 
+        await this.sendVerificationEmail(trimEmail);
+        return {
+            message: '사용 가능한 이메일입니다. 메일함을 확인해주세요.',
+            statusCode: 200,
+        };
+    }
+
+    // 토큰 발급 로직
+    private async generateTokens(user: AuthUser) {
         const accessPayload = {
             sub: user.id,
             username: user.userName,
@@ -166,12 +160,85 @@ export class AuthService {
         await this.userService.updateRefreshToken(user.id, refreshToken);
 
         return {
+            accessToken: accessToken,
+            refreshToken: refreshToken
+        }
+    }
+
+    // 기존 로그인 (수정됨)
+    async signIn(signinform: SignInDto) {
+        // 유저 검증
+        const user = await this.authenticateUser(signinform);
+        // 토큰 발급
+        const token = await this.generateTokens(user);
+
+        return {
             message: '로그인 성공',
             statusCode: 200,
             username: user.userName,
             profileImage: user.profileImage,
-            access_token: accessToken,
-            refresh_token: refreshToken,
+            access_token: token.accessToken,
+            refresh_token: user.refreshToken,
+        }
+    }
+
+    // 소셜로그인 - 애플
+    async appleSignIn(applesigninform: AppleSigninDto) {
+        this.logger.log(`애플 로그인 시작 시작 - OAuth ID: ${applesigninform.oauthId}, Email: ${applesigninform.email || 'N/A'}`);
+        
+        try {
+            // 가입된 회원인지 아닌지
+            let user = await this.userService.findByOAuth(OAuthProvider.apple, applesigninform.oauthId);
+
+            if (!user) {
+                user = await this.prisma.users.create({
+                    data: {
+                        oauthProvider: OAuthProvider.apple,
+                        oauthId: applesigninform.oauthId,
+                        userEmail: applesigninform.email || `${applesigninform.oauthId}@apple.private`,
+                        userName: applesigninform.givenName ?
+                            `${applesigninform.givenName} ${applesigninform.familyName || ''}`.trim() :
+                            '애플 사용자',
+                        targetLanguage: applesigninform.targetLanguage || 'en',
+                        birthday: '',
+                        passwordHash: '',
+                        isMentor: false,
+                        reportCount: 0,
+                        refreshToken: '',
+                        isDeleted: false,
+                        isBlocked: false
+                    }
+                });
+                this.logger.log(`신규 사용자 생성 - User ID: ${user.id}, Email: ${user.userEmail}`);
+            } else {
+                this.logger.log(`기존 사용자 있음`);
+            }
+
+            // 애플 로그인 유저 검증
+            const authUser = await this.authenticateAppleUser(applesigninform);
+
+            // 토큰 발급
+            const tokens = await this.generateTokens(authUser);
+
+            this.logger.log(`애플 로그인 완료 - User ID: ${user.id}, Username: ${user.userName}`);
+
+            return {
+                message: '애플 로그인 성공',
+                statusCode: 200,
+                username: user.userName,
+                profileImage: user.profileImage,
+                access_token: tokens.accessToken,
+                refresh_token: user.refreshToken
+            }
+        } catch (error) {
+            this.logger.error(`애플 로그인 실패 - OAuth ID: ${applesigninform.oauthId}`, {
+                errorName: error?.name,
+                errorMessage: error?.message,
+                errorStack: error?.stack,
+                errorCode: error?.code,
+                statusCode: error?.statusCode
+            });
+            throw error;
         }
     }
 
@@ -214,7 +281,7 @@ export class AuthService {
             });
         }
 
-        const isMatch = await bcrypt.compare(updatepasswordform.org_password, user.passwordHash);
+        const isMatch = await bcrypt.compare(updatepasswordform.org_password, user.passwordHash || '');
         if (!isMatch) {
             throw new UnauthorizedException({
                 message: ['비밀번호가 일치하지 않습니다.'],
@@ -223,7 +290,7 @@ export class AuthService {
             });
         }
 
-        const isExsists = await bcrypt.compare(updatepasswordform.new_password, user.passwordHash);
+        const isExsists = await bcrypt.compare(updatepasswordform.new_password, user.passwordHash || '');
         if (isExsists) {
             throw new BadRequestException({
                 message: ['기존에 사용하던 비밀번호와 동일합니다. 다른 비밀번호를 입력해주세요.'],
@@ -363,10 +430,8 @@ export class AuthService {
         }
     }
 
-    // 로그인 유저 검증
-    async authenticateUser(
-        signinform: SignInDto,
-    ): Promise<AuthUser> {
+    // 로그인 유저 검증 (일반 로그인)
+    async authenticateUser(signinform: SignInDto): Promise<AuthUser> {
         const user = await this.userService.findUserForValidation(signinform.userEmail);
         if (!user) {
             throw new UnauthorizedException({
@@ -376,7 +441,7 @@ export class AuthService {
             });
         }
 
-        const isMatch = await bcrypt.compare(signinform.password, user.passwordHash);
+        const isMatch = await bcrypt.compare(signinform.password, user.passwordHash || '');
         if (!isMatch) {
             throw new UnauthorizedException({
                 message: ['이메일 또는 비밀번호가 일치하지 않습니다.'],
@@ -395,6 +460,55 @@ export class AuthService {
 
         const { passwordHash: _, refreshToken: __, ...safeUser } = user;
         return safeUser as AuthUser;
+    }
+
+    // 애플 로그인 유저 검증
+    async authenticateAppleUser(applesigninform: AppleSigninDto): Promise<AuthUser> {
+        this.logger.log(`[Apple Auth] 사용자 검증 시작 - OAuth ID: ${applesigninform.oauthId}`);
+        
+        try {
+            // 애플 토큰 검증
+            await this.verifyAppleIdToken(applesigninform.idToken);
+
+            // OAuth로 사용자 찾기
+            const user = await this.userService.findByOAuth(OAuthProvider.apple, applesigninform.oauthId);
+            
+            if (!user) {
+                throw new UnauthorizedException({
+                    message: ['애플 계정으로 가입된 사용자를 찾을 수 없습니다.'],
+                    error: 'Unauthorized',
+                    statusCode: 401,
+                });
+            }
+
+            if (user.isBlocked) {
+                throw new BadRequestException({
+                    message: ['정지된 계정입니다. 관리자에게 문의해주세요.'],
+                    error: 'BadRequest',
+                    statusCode: 400,
+                });
+            }
+
+            this.logger.log(`사용자 검증 완료 - User ID: ${user.id}, Username: ${user.userName}`);
+
+            return {
+                id: user.id,
+                userEmail: user.userEmail,
+                userName: user.userName,
+                profileImage: user.profileImage || '',
+                isBlocked: user.isBlocked,
+                refreshToken: ''
+            };
+        } catch (error) {
+            this.logger.error(`사용자 검증 실패 - OAuth ID: ${applesigninform.oauthId}`, {
+                errorName: error?.name,
+                errorMessage: error?.message,
+                errorStack: error?.stack,
+                errorCode: error?.code,
+                statusCode: error?.statusCode
+            });
+            throw error;
+        }
     }
 
     // 회원 탈퇴 (soft-delete)
@@ -588,7 +702,7 @@ export class AuthService {
 
         const user = await this.userService.findUserForPasswordReset(trimEmail);
 
-        const isUsed = await this.userService.comparePassword(changepasswordform.newPassword, user.passwordHash);
+        const isUsed = await this.userService.comparePassword(changepasswordform.newPassword, user.passwordHash || '');
         if (isUsed) {
             throw new BadRequestException({
                 message: ['이미 사용중인 비밀번호입니다. 다른 비밀번호를 입력해주세요.'],
@@ -629,8 +743,13 @@ export class AuthService {
         }
     }
 
+    private headerDecode(token: string): { [key: string]: string } {
+        const header = token.split('.')[0];
+        return JSON.parse(Buffer.from(header, 'base64').toString())
+    }
+
     // 이메일 인증 코드 전송
-    async sendVerificationEmail(email: string): Promise<CommonResponseDto>{
+    async sendVerificationEmail(email: string): Promise<CommonResponseDto> {
         const temporaryCode = this.generateTemporaryCode();
         const expirationTime = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
         const fromemail = this.config.get('EMAIL_FROM');
@@ -1050,5 +1169,159 @@ export class AuthService {
                 statusCode: 500
             })
         }
+    }
+
+    private async verifyAppleIdToken(token: string): Promise<any> {
+        const startTime = Date.now();
+        this.logger.log('Apple ID Token 검증 시작');
+        
+        try {
+            // JWKS 클라이언트 생성
+            const client = new JwksClient({
+                jwksUri: 'https://appleid.apple.com/auth/keys',
+                cache: true,
+                cacheMaxAge: 86400000, // 24시간 캐시
+                rateLimit: true,
+                jwksRequestsPerMinute: 10,
+                timeout: 10000, // 10초 타임아웃 추가
+                requestAgent: new (require('https').Agent)({
+                    timeout: 10000,
+                    keepAlive: true
+                })
+            });
+
+            // JWT 헤더에서 kid 추출
+            const decodedHeader = jwt.decode(token, { complete: true });
+            if (!decodedHeader || !decodedHeader.header.kid) {
+                throw new UnauthorizedException({
+                    message: ['토큰이 유효하지 않습니다.'],
+                    error: 'Unauthorized',
+                    statusCode: 401
+                });
+            }
+
+            const kid = decodedHeader.header.kid;
+
+            // 공개키 가져오기
+            const keyFetchStartTime = Date.now();
+            
+            const key = await this.getSigningKeyWithRetry(client, kid);
+
+            const keyFetchTime = Date.now() - keyFetchStartTime;
+
+            // JWT 토큰 검증
+            const jwtVerifyStartTime = Date.now();
+            
+            const verified = await new Promise((resolve, reject) => {
+                jwt.verify(token, key as string, {
+                    algorithms: ['RS256'],
+                    audience: process.env.APPLE_BUNDLE_ID,
+                    issuer: 'https://appleid.apple.com',
+                    clockTolerance: 60
+                }, (err, decoded) => {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve(decoded);
+                    }
+                });
+            });
+
+            const jwtVerifyTime = Date.now() - jwtVerifyStartTime;
+
+            // 추가 검증
+            const payload = verified as jwt.JwtPayload;
+            
+            if (payload.aud !== process.env.APPLE_BUNDLE_ID) {
+                this.logger.error(`[Apple Token] Audience 불일치 - expected: ${process.env.APPLE_BUNDLE_ID}, actual: ${payload.aud}`);
+                throw new Error('Invalid audience');
+            }
+
+            if (payload.iss !== 'https://appleid.apple.com') {
+                this.logger.error(`[Apple Token] Issuer 불일치 - expected: https://appleid.apple.com, actual: ${payload.iss}`);
+                throw new Error('Invalid issuer');
+            }
+
+            const totalTime = Date.now() - startTime;
+            this.logger.log(`Apple ID Token 검증 완료`);
+
+            return verified;
+
+        } catch (error) {
+            const totalTime = Date.now() - startTime;
+            this.logger.error(`Apple ID Token 검증 실패`, {
+                errorName: error?.name,
+                errorMessage: error?.message,
+                errorStack: error?.stack,
+                errorCode: error?.code,
+                isTimeout: error?.code === 'ECONNABORTED' || error?.message?.includes('timeout'),
+                isNetworkError: error?.code === 'ENOTFOUND' || error?.code === 'ECONNREFUSED'
+            });
+            
+            // 타임아웃 에러인지 확인
+            if ((error as any).code === 'ECONNABORTED' || error.message.includes('timeout')) {
+                throw new InternalServerErrorException({
+                    message: ['Apple 서버 연결 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.'],
+                    error: 'InternalServerError',
+                    statusCode: 500
+                });
+            }
+            
+            // 네트워크 에러인지 확인
+            if ((error as any).code === 'ENOTFOUND' || (error as any).code === 'ECONNREFUSED') {
+                this.logger.error('[Apple Token] 네트워크 연결 실패');
+                throw new InternalServerErrorException({
+                    message: ['Apple 서버에 연결할 수 없습니다. 네트워크 연결을 확인해주세요.'],
+                    error: 'InternalServerError',
+                    statusCode: 500
+                });
+            }
+            
+            throw new UnauthorizedException({
+                message: ['Apple 토큰 검증에 실패했습니다.'],
+                error: 'Unauthorized',
+                statusCode: 401
+            });
+        }
+    }
+
+    // 재시도 로직을 포함한 공개키 가져오기 메서드
+    private async getSigningKeyWithRetry(client: JwksClient, kid: string, maxRetries: number = 3): Promise<string> {
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                
+                return await new Promise((resolve, reject) => {
+                    client.getSigningKey(kid, (err, result) => {
+                        if (err) {
+                            this.logger.error(`[Apple Token] JWKS 공개키 요청 실패 (시도 ${attempt}/${maxRetries}) - kid: ${kid}`, {
+                                error: err.message,
+                                code: (err as any).code,
+                                stack: err.stack
+                            });
+                            reject(err);
+                        } else {
+                            if (result) {
+                                resolve(result.getPublicKey());
+                            } else {
+                                this.logger.error(`JWKS에서 공개키를 찾을 수 없음 (시도 ${attempt}/${maxRetries}) - kid: ${kid}`);
+                                reject(new Error('No signing key found'));
+                            }
+                        }
+                    });
+                });
+            } catch (error) {
+                if (attempt === maxRetries) {
+                    this.logger.error(`모든 재시도 실패 - kid: ${kid}, 총 시도: ${maxRetries}`);
+                    throw error;
+                }
+                
+                // 재시도 전 잠시 대기
+                const delay = Math.pow(2, attempt) * 1000;
+                this.logger.warn(`,JWKS 요청 실패, ${delay}ms 후 재시도`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+        
+        throw new Error('Failed to get signing key after all retries');
     }
 }

@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 
 import * as bcrypt from 'bcrypt';
 import { SignInDto } from 'src/auth/dto/SignInDto';
+import { OAuthProvider } from '@prisma/client';
 
 @Injectable()
 export class UserService {
@@ -190,4 +191,31 @@ export class UserService {
             }
         }
     }
+
+    // 애플로그인용
+    async findByOAuth(provider: OAuthProvider, oauthId: string) {
+        return await this.prisma.users.findUnique({
+          where: {
+            oauthProvider_oauthId: {
+              oauthProvider: provider,
+              oauthId: oauthId
+            }
+          },
+          select: {
+            id: true,
+            userName: true,
+            userEmail: true,
+            birthday: true,
+            oauthProvider: true,
+            oauthId: true,
+            isMentor: true,
+            reportCount: true,
+            targetLanguage: true,
+            isDeleted: true,
+            isBlocked: true,
+            profileImage: true,
+            refreshToken: true
+          }
+        });
+      }
 }
