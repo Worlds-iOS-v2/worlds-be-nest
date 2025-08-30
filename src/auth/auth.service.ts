@@ -169,6 +169,7 @@ export class AuthService {
             message: '로그인 성공',
             statusCode: 200,
             username: user.userName,
+            profileImage: user.profileImage,
             access_token: accessToken,
             refresh_token: refreshToken,
         }

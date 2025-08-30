@@ -61,6 +61,7 @@ export class UserService {
                 birthday: true,
                 isMentor: true,
                 reportCount: true,
+                profileImage: true,
             }
         })
     }
@@ -78,6 +79,7 @@ export class UserService {
                 passwordHash: true,
                 refreshToken: true,
                 userName: true,
+                profileImage: true,
                 isBlocked: true,
             },
         });

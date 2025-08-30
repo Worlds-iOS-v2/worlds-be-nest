@@ -1,4 +1,4 @@
-import { BadRequestException, Controller, Get, Post, Request, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Param, ParseIntPipe, Post, Request, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common';
 import { OcrService } from './ocr.service';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
@@ -13,7 +13,6 @@ import { GetOcrRecordsDto } from './dto/GetOcrRecordsDto';
 @Controller('ocr')
 @ApiTags('문제 분석 및 요약')
 @UseFilters(HttpExceptionFilter)
-@ApiBearerAuth()
 export class OcrController {
   constructor(private readonly ocrService: OcrService) {}
   
@@ -39,6 +38,7 @@ export class OcrController {
     }),
     AzureStorageInterceptor,
   )
+  @ApiBearerAuth()
   @UseInterceptors(ResponseInterceptor)
   @ApiOperation({ summary: 'OCR 요청' })
   @ApiResponse({ status: 200, description: 'OCR 요청 성공' })
@@ -84,6 +84,7 @@ export class OcrController {
     }),
     AzureStorageInterceptor,
   )
+  @ApiBearerAuth()
   @UseInterceptors(ResponseInterceptor)
   @ApiOperation({ summary: 'OCR 요청' })
   @ApiResponse({ status: 200, description: 'OCR 요청 성공' })
@@ -112,17 +113,17 @@ export class OcrController {
   @ApiOperation({ summary: 'Solution 요청' })
   @ApiResponse({ status: 200, description: 'Solution 요청 성공' })
   @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   async solution(@Request() req: ExpressRequest) {
     const userId = (req.user as any).id;
     return this.ocrService.solution(userId);
   }
 
-  @Get('my')
+  @Get(':id')
   @ApiOperation({ summary: '내 OCR 기록 조회'})
   @ApiResponse({ status: 200, description: 'OCR 기록 조회 성공', type: GetOcrRecordsDto})
-  @UseGuards(JwtAuthGuard)
-  async getOcrRecords(@Request() req: ExpressRequest) {
-    const userId = (req.user as any).id;
-    return this.ocrService.getMyOcr(userId);
+  async getOcrRecords(@Param('id', ParseIntPipe) id: number) {
+    return this.ocrService.getMyOcr(id);
   }
 }
+
