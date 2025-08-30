@@ -1,0 +1,42 @@
+name: Deploy develop to Azure Web App (lsh slot)
+
+on:
+  push:
+    branches: [ develop ]
+  workflow_dispatch: {}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install deps (with dev)
+        run: npm ci
+
+      - name: Build (Nest -> dist)
+        run: npm run build
+
+      # 런타임에는 devDeps 불필요 → 용량 줄이기
+      - name: Prune dev deps
+        run: npm prune --omit=dev
+
+      - name: Pack runtime artifacts
+        run: |
+          zip -r release.zip dist node_modules package.json package-lock.json
+
+      - name: "Deploy to Azure Web App (slot: lsh)"
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: worldstudy
+          slot-name: lsh
+          package: release.zip
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_LSH }}
