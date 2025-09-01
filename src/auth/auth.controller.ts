@@ -1,9 +1,10 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards, Request, Patch, Delete, UseInterceptors, UseFilters } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards, Request, Patch, Delete, UseInterceptors, UseFilters, Query, Res, Req } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from './dto/CreateUserDto';
 import { SignInDto } from './dto/SignInDto';
 import { JwtAuthGuard } from './jwt-auth.guard';
-import { Request as ExpressRequest } from 'express';
+import { Request as ExpressRequest, Response } from 'express';
+import { Response as ExpressResponse } from 'express';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiProperty, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { UpdatePasswordDto } from './dto/UpdatePasswordDto';
 import { FindEmailDto } from './dto/FindEmailDto';
@@ -19,6 +20,7 @@ import { CommonResponseDto } from 'src/common/dto/CommonResponseDto';
 import { GetNewAccesstokenDto } from './dto/GetNewAccesstokenDto';
 import { RequestResetPasswordDto } from './dto/RequestResetPasswordDto';
 import { AppleSigninDto } from './dto/apple-signin.dto';
+import { KakaoSignInDto } from './dto/kakao-signin.dto';
 
 @ApiTags('사용자')
 @Controller('auth')
@@ -27,7 +29,7 @@ import { AppleSigninDto } from './dto/apple-signin.dto';
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
-  ) {}
+  ) { }
 
   // 회원가입
   @Post('signup')
@@ -56,12 +58,12 @@ export class AuthController {
 
   // 애플로그인
   @Post('signin/apple')
-  @ApiOperation({ summary: '애플 로그인'})
-  @ApiResponse({ status: 200, description: '애플 로그인 성공'})
+  @ApiOperation({ summary: '애플 로그인' })
+  @ApiResponse({ status: 200, description: '애플 로그인 성공' })
   async appleSignIn(@Body() applesigninform: AppleSigninDto) {
     console.log(`[Apple Sign-In Controller] 요청 시작 - OAuth ID: ${applesigninform.oauthId}, Email: ${applesigninform.email || 'N/A'}`);
     const startTime = Date.now();
-    
+
     try {
       const result = await this.authService.appleSignIn(applesigninform);
       const duration = Date.now() - startTime;
@@ -76,6 +78,39 @@ export class AuthController {
       });
       throw error;
     }
+  }
+
+  // 카카오 로그인 페이지 요청
+  @Post('signin/kakao')
+  // @UseGuards(JwtAuthGuard)
+  async kakaoSignIn(@Body() kakaosigninform: KakaoSignInDto) {
+    return this.authService.signInWithKakao(kakaosigninform);
+  }
+
+  // 카카오 콜백 포인트
+  @Get('kakao/callback')
+  async kakaoCallback(@Query('code') kakaoAuthResCode: string, @Res() res: Response) {
+    const result = await this.authService.signInWithKakao({
+      kakaoAuthResCode: kakaoAuthResCode,
+      isMentor: false, // 기본값
+      targetLanguage: 'en' // 기본값
+    });
+
+    // result.user에서 필요한 정보 추출
+    res.cookie('Authorization', result.access_token, {
+      httpOnly: true,
+      secure: false,
+      maxAge: 3600000,
+    });
+
+    res.status(200).json({
+      message: '카카오 로그인 성공',
+      statusCode: 200,
+      userName: result.userName,
+      profileImage: result.profileImage,
+      access_token: result.access_token,
+      refresh_token: result.refresh_token
+    });
   }
 
   // 로그아웃
@@ -195,7 +230,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: '사용자 프로필 이미지 설정' })
-  @ApiResponse({ status: 200, description: '프로필 이미지 설정 성공'})
+  @ApiResponse({ status: 200, description: '프로필 이미지 설정 성공' })
   async setProfileImage(@Request() req: ExpressRequest, @Body() image: SetProfileImageDto) {
     const userId = (req.user as any).id;
     return this.authService.setProfileImage(userId, image)

@@ -19,7 +19,7 @@ model Users {
   refreshToken     String
   targetLanguage   String
   profileImage     ProfileImage?
-  isDeleted        Boolean?
+  isDeleted        Boolean           @default(false)
   WithdrawalReason WithdrawalReason?
   isBlocked        Boolean           @default(false)
 

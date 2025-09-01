@@ -23,7 +23,11 @@ import { GetNewAccesstokenDto } from './dto/GetNewAccesstokenDto';
 import { JwksClient } from 'jwks-rsa'
 import * as jwt from 'jsonwebtoken'
 import { AppleSigninDto } from './dto/apple-signin.dto';
-import { OAuthProvider } from '@prisma/client';
+import { OAuthProvider, Users } from '@prisma/client';
+import { firstValueFrom } from 'rxjs';
+import { HttpService } from '@nestjs/axios';
+import { KakaoSignInDto } from './dto/kakao-signin.dto';
+import { KakaoSignUpDto } from './dto/kakao-signup.dto';
 
 @Injectable()
 export class AuthService {
@@ -33,7 +37,8 @@ export class AuthService {
         private readonly config: ConfigService,
         private readonly userService: UserService,
         private readonly jwtService: JwtService,
-        private readonly mailerService: MailerService
+        private readonly mailerService: MailerService,
+        private readonly httpService: HttpService
     ) { }
 
     // 회원가입
@@ -137,6 +142,10 @@ export class AuthService {
 
     // 토큰 발급 로직
     private async generateTokens(user: AuthUser) {
+        console.log('=== generateTokens 시작 ===');
+        console.log('user 객체:', user);
+        console.log('user.id:', user.id);
+        
         const accessPayload = {
             sub: user.id,
             username: user.userName,
@@ -185,7 +194,7 @@ export class AuthService {
     // 소셜로그인 - 애플
     async appleSignIn(applesigninform: AppleSigninDto) {
         this.logger.log(`애플 로그인 시작 - OAuth ID: ${applesigninform.oauthId}, Email: ${applesigninform.email || 'N/A'}`);
-        
+
         try {
             // 가입된 회원인지 아닌지
             let user = await this.userService.findByOAuth(OAuthProvider.apple, applesigninform.oauthId);
@@ -240,6 +249,107 @@ export class AuthService {
             });
             throw error;
         }
+    }
+
+    // 카카오 정보 회원 가입
+    async signUpWithKakao(kakaosignupfrom: KakaoSignUpDto) {
+        const kakaoAccount = kakaosignupfrom.profile.kakao_account;
+        const kakaoId = kakaosignupfrom.kakaoId
+        const isMentor = kakaosignupfrom.isMentor
+        const targetLanguage = kakaosignupfrom.targetLanguage
+
+        const kakaoUsername = kakaoAccount.name;
+        const kakaoEmail = kakaoAccount.email;
+
+        console.log('=== signUpWithKakao 시작 ===');
+        console.log('kakaoId:', kakaoId);
+        console.log('kakaoUsername:', kakaoUsername);
+        console.log('kakaoEmail:', kakaoEmail);
+
+        // oauthId로 사용자 잇는지 확인
+        const existingUser = await this.prisma.users.findFirst({ where: { oauthId: kakaoId } });
+        if (existingUser) {
+            console.log('기존 사용자 찾음: ', existingUser.id)
+            return existingUser;
+        }
+
+        // 새 사용자 생성 로직
+        const newUser = await this.prisma.users.create({
+            data: {
+                userName: kakaoUsername,
+                userEmail: kakaoEmail,
+                refreshToken: '',
+                targetLanguage: targetLanguage,
+                oauthProvider: OAuthProvider.kakao,
+                oauthId: kakaoId,
+                isMentor: isMentor,
+            }
+        });
+
+        console.log('새 사용자 생성됨 - ID:', newUser.id);
+        console.log('=== signUpWithKakao 완료 ===');
+        return newUser;
+    }
+
+    // 카카오 로그인
+    async signInWithKakao(kakaosigninform: KakaoSignInDto) {
+        // 카카오 사용자 정보 요청용 Access Token 발급
+        // const accessToken = await this.getKakaoAccessToken(kakaosigninform.kakaoAuthResCode);
+
+        // Access Token으로 사용자 정보 요청
+        const kakaoUserInfo = await this.getKakaoUserInfo(kakaosigninform.kakaoAuthResCode);
+
+        // 카카오 사용자 정보를 기반으로 회원가입 또는 로그인 처리
+        const user = await this.signUpWithKakao({
+            kakaoId: kakaoUserInfo.id.toString(),
+            profile: kakaoUserInfo,
+            isMentor: kakaosigninform.isMentor,
+            targetLanguage: kakaosigninform.targetLanguage
+        });
+
+        // 토큰 생성
+        const tokens = await this.generateTokens({
+            ...user,
+            profileImage: user.profileImage || ''
+        });
+
+        return {
+            message: '카카오 로그인 성공',
+            statusCode: 200,
+            userName: user.userName,
+            profileImage: user.profileImage,
+            access_token: tokens.accessToken,
+            refresh_token: tokens.refreshToken,
+        }
+    }
+
+    // 카카오 사용자 정보 요청용 Access Token 발급
+    async getKakaoAccessToken(code: string): Promise<string> {
+        const tokenUrl = 'https://kauth.kakao.com/oauth/token';
+        const payload = {
+            grant_type: 'authorization_code',
+            client_id: process.env.KAKAO_CLIENT_ID, // Kakao REST API Key
+            redirect_uri: process.env.KAKAO_CALLBACK_URL,
+            code,
+            client_secret: process.env.KAKAO_CLIENT_SECRET // 필요시 사용
+        };
+
+        const response = await firstValueFrom(this.httpService.post(tokenUrl, null, {
+            params: payload,
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        }));
+
+        return response.data.access_token;  // Access Token 반환
+    }
+
+    // Access Token으로 카카오 사용자 정보 요청
+    async getKakaoUserInfo(accessToken: string): Promise<any> {
+        const userInfoUrl = 'https://kapi.kakao.com/v2/user/me';
+        const response = await firstValueFrom(this.httpService.get(userInfoUrl, {
+            headers: { Authorization: `Bearer ${accessToken}` }
+        }));
+        this.logger.debug(`Kakao User Info: ${JSON.stringify(response.data)}`); // 데이터 확인
+        return response.data;
     }
 
     // 이메일 찾기
@@ -355,25 +465,16 @@ export class AuthService {
                 });
             }
 
-            const accessPayload = {
-                sub: user.id,
-                username: user.userName,
-                type: 'access',
-            }
-
-            const refreshPayload = {
-                sub: user.id,
-                type: 'refresh',
-            }
-
-            const newAccessToken = this.jwtService.sign(accessPayload, {
-                expiresIn: '1h',
+            const tokens = await this.generateTokens({
+                ...user,
+                profileImage: user.profileImage || ''
             });
 
             return {
                 message: '액세스 토큰 재발급 성공',
                 statusCode: 200,
-                access_token: newAccessToken,
+                access_token: tokens.accessToken,
+                refresh_token: tokens.refreshToken,
             };
         } catch (error) {
             this.logger.error('Refresh token error:', {
@@ -465,14 +566,14 @@ export class AuthService {
     // 애플 로그인 유저 검증
     async authenticateAppleUser(applesigninform: AppleSigninDto): Promise<AuthUser> {
         this.logger.log(`사용자 검증 시작 - OAuth ID: ${applesigninform.oauthId}`);
-        
+
         try {
             // 애플 토큰 검증
             await this.verifyAppleIdToken(applesigninform.idToken);
 
             // OAuth로 사용자 찾기
             const user = await this.userService.findByOAuth(OAuthProvider.apple, applesigninform.oauthId);
-            
+
             if (!user) {
                 throw new UnauthorizedException({
                     message: ['애플 계정으로 가입된 사용자를 찾을 수 없습니다.'],
@@ -1174,7 +1275,7 @@ export class AuthService {
     private async verifyAppleIdToken(token: string): Promise<any> {
         const startTime = Date.now();
         this.logger.log('Apple ID Token 검증 시작');
-        
+
         try {
             // JWKS 클라이언트 생성
             const client = new JwksClient({
@@ -1204,14 +1305,14 @@ export class AuthService {
 
             // 공개키 가져오기
             const keyFetchStartTime = Date.now();
-            
+
             const key = await this.getSigningKeyWithRetry(client, kid);
 
             const keyFetchTime = Date.now() - keyFetchStartTime;
 
             // JWT 토큰 검증
             const jwtVerifyStartTime = Date.now();
-            
+
             const verified = await new Promise((resolve, reject) => {
                 jwt.verify(token, key as string, {
                     algorithms: ['RS256'],
@@ -1231,7 +1332,7 @@ export class AuthService {
 
             // 추가 검증
             const payload = verified as jwt.JwtPayload;
-            
+
             if (payload.aud !== process.env.APPLE_BUNDLE_ID) {
                 this.logger.error(`[Apple Token] Audience 불일치 - expected: ${process.env.APPLE_BUNDLE_ID}, actual: ${payload.aud}`);
                 throw new Error('Invalid audience');
@@ -1257,7 +1358,7 @@ export class AuthService {
                 isTimeout: error?.code === 'ECONNABORTED' || error?.message?.includes('timeout'),
                 isNetworkError: error?.code === 'ENOTFOUND' || error?.code === 'ECONNREFUSED'
             });
-            
+
             // 타임아웃 에러인지 확인
             if ((error as any).code === 'ECONNABORTED' || error.message.includes('timeout')) {
                 throw new InternalServerErrorException({
@@ -1266,7 +1367,7 @@ export class AuthService {
                     statusCode: 500
                 });
             }
-            
+
             // 네트워크 에러인지 확인
             if ((error as any).code === 'ENOTFOUND' || (error as any).code === 'ECONNREFUSED') {
                 this.logger.error('[Apple Token] 네트워크 연결 실패');
@@ -1276,7 +1377,7 @@ export class AuthService {
                     statusCode: 500
                 });
             }
-            
+
             throw new UnauthorizedException({
                 message: ['Apple 토큰 검증에 실패했습니다.'],
                 error: 'Unauthorized',
@@ -1289,7 +1390,7 @@ export class AuthService {
     private async getSigningKeyWithRetry(client: JwksClient, kid: string, maxRetries: number = 3): Promise<string> {
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                
+
                 return await new Promise((resolve, reject) => {
                     client.getSigningKey(kid, (err, result) => {
                         if (err) {
@@ -1314,14 +1415,14 @@ export class AuthService {
                     this.logger.error(`모든 재시도 실패 - kid: ${kid}, 총 시도: ${maxRetries}`);
                     throw error;
                 }
-                
+
                 // 재시도 전 잠시 대기
                 const delay = Math.pow(2, attempt) * 1000;
                 this.logger.warn(`,JWKS 요청 실패, ${delay}ms 후 재시도`);
                 await new Promise(resolve => setTimeout(resolve, delay));
             }
         }
-        
+
         throw new Error('Failed to get signing key after all retries');
     }
 }

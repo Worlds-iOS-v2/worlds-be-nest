@@ -8,11 +8,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { UserModule } from '../user/user.module';
 import { JwtStrategy } from './jwt.strategy';
 import { MAILER_OPTIONS, MailerModule, MailerService } from '@nestjs-modules/mailer';
+import { KakaoStrategy } from './kakao.strategy';
+import { HttpModule } from '@nestjs/axios';
 
 @Module({
   imports: [
     UserModule,
     PassportModule,
+    HttpModule,
     MailerModule.forRootAsync({
       useFactory: () => ({
         transport: {
@@ -39,7 +42,7 @@ import { MAILER_OPTIONS, MailerModule, MailerService } from '@nestjs-modules/mai
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, PrismaService, JwtStrategy],
+  providers: [AuthService, PrismaService, JwtStrategy, KakaoStrategy],
 })
 export class AuthModule { }
 
