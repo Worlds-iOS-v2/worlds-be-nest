@@ -16,14 +16,14 @@ async function bootstrap() {
     .setDescription('World Study API 명세서')
     .setVersion('1.0')
     .addBearerAuth()
-    .addTag('questions')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
   // Azure App Service 포트 설정
-  const port = process.env.PORT || 3000;
+  // const port = process.env.PORT || 3000;
+  const port = Number(process.env.PORT) || 8080;
   console.log(`Server starting on port: ${port}`);
   
   await app.listen(port, '0.0.0.0');
