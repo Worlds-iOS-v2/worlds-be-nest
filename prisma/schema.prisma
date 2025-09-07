@@ -12,13 +12,13 @@ model Users {
   id               Int               @id @default(autoincrement())
   userName         String
   userEmail        String            @unique
-  birthday         DateTime
+  birthday         String
   passwordHash     String
   isMentor         Boolean           @default(false)
-  mentorCode       String?           @unique
   reportCount      Int               @default(0)
   refreshToken     String
   targetLanguage   String
+  profileImage     ProfileImage?
   isDeleted        Boolean?
   WithdrawalReason WithdrawalReason?
   isBlocked        Boolean           @default(false)
@@ -42,6 +42,9 @@ model Users {
 
   // 출석 데이터
   attendances Attendance[]
+
+  // 이메일 인증용 데이터
+  emailVerifications EmailVerifications[]
 }
 
 // 탈퇴 사유
@@ -51,6 +54,13 @@ enum WithdrawalReason {
   low_usage
   service_issue
   other
+}
+
+enum ProfileImage {
+  himchan
+  doran
+  malgeum
+  saengak
 }
 
 // 번역 및 분석
@@ -274,4 +284,19 @@ model Attendance {
   createdAt DateTime @default(now())
 
   @@unique([userId, createdAt])
+}
+
+// 이메일 인증
+model EmailVerifications {
+  id               Int      @id @default(autoincrement())
+  userId           Int
+  user             Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userEmail        String   @unique
+  verificationCode String
+  expirationTime   DateTime
+  isVerified       Boolean  @default(false)
+  createdAt        DateTime @default(now())
+
+  @@index([userEmail])
+  @@index([verificationCode])
 }
