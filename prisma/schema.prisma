@@ -51,7 +51,7 @@ model Users {
   emailVerifications EmailVerifications[]
 
   // 복합 인덱스 추가 (성능 최적화)
-  @@unique([oauthProvider, oauthId])
+  @@unique([oauthProvider, oauthId], name: "oauthProvider_oauthId")
   @@index([userEmail])
   @@index([oauthProvider, oauthId])
 }

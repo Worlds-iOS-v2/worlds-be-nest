@@ -199,12 +199,26 @@ export class AuthService {
             // 가입된 회원인지 아닌지
             let user = await this.userService.findByOAuth(OAuthProvider.apple, applesigninform.oauthId);
 
-            if (!user) {
-                user = await this.prisma.users.create({
-                    data: {
+            // 애플 로그인 유저 검증
+            const authUser = await this.authenticateAppleUser(applesigninform);
+
+            // 토큰 발급
+            const tokens = await this.generateTokens(authUser);
+
+            user = await this.prisma.users.upsert({
+                where: { oauthProvider_oauthId: { oauthProvider: OAuthProvider.apple, oauthId: applesigninform.oauthId } },
+                update: {
+                    userEmail: applesigninform.email ? applesigninform.email : user?.userEmail,
+                    userName: applesigninform.givenName ?
+                        `${applesigninform.givenName} ${applesigninform.familyName || ''}`.trim() :
+                        user?.userName || '애플 사용자',
+                    refreshToken: tokens.refreshToken,
+                    isDeleted: false,
+                },
+                create: {
                         oauthProvider: OAuthProvider.apple,
                         oauthId: applesigninform.oauthId,
-                        userEmail: applesigninform.email || `${applesigninform.oauthId}@apple.private`,
+                        userEmail: applesigninform.email ? applesigninform.email : `${applesigninform.oauthId}@apple.private`,
                         userName: applesigninform.givenName ?
                             `${applesigninform.givenName} ${applesigninform.familyName || ''}`.trim() :
                             '애플 사용자',
@@ -213,7 +227,27 @@ export class AuthService {
                         passwordHash: '',
                         isMentor: false,
                         reportCount: 0,
-                        refreshToken: '',
+                        refreshToken: tokens.refreshToken,
+                        isDeleted: false,
+                        isBlocked: false
+                }
+            })
+
+            if (!user) {
+                user = await this.prisma.users.create({
+                    data: {
+                        oauthProvider: OAuthProvider.apple,
+                        oauthId: applesigninform.oauthId,
+                        userEmail: applesigninform.email ? applesigninform.email : `${applesigninform.oauthId}@apple.private`,
+                        userName: applesigninform.givenName ?
+                            `${applesigninform.givenName} ${applesigninform.familyName || ''}`.trim() :
+                            '애플 사용자',
+                        targetLanguage: applesigninform.targetLanguage || 'en',
+                        birthday: '',
+                        passwordHash: '',
+                        isMentor: false,
+                        reportCount: 0,
+                        refreshToken: tokens.refreshToken,
                         isDeleted: false,
                         isBlocked: false
                     }
@@ -222,12 +256,6 @@ export class AuthService {
             } else {
                 this.logger.log(`기존 사용자 있음`);
             }
-
-            // 애플 로그인 유저 검증
-            const authUser = await this.authenticateAppleUser(applesigninform);
-
-            // 토큰 발급
-            const tokens = await this.generateTokens(authUser);
 
             this.logger.log(`애플 로그인 완료 - User ID: ${user.id}, Username: ${user.userName}`);
 
