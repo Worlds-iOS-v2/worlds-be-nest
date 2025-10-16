@@ -22,6 +22,8 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.911.0",
+    "@aws-sdk/s3-request-presigner": "^3.911.0",
     "@azure-rest/ai-vision-image-analysis": "^1.0.0-beta.3",
     "@azure/storage-blob": "^12.27.0",
     "@nestjs-modules/mailer": "^2.0.2",
@@ -33,7 +35,7 @@
     "@nestjs/core": "^11.0.1",
     "@nestjs/jwt": "^11.0.0",
     "@nestjs/passport": "^11.0.5",
-    "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/platform-express": "^11.1.6",
     "@nestjs/platform-socket.io": "^11.1.5",
     "@nestjs/schedule": "^6.0.0",
     "@nestjs/swagger": "^11.2.0",
@@ -54,7 +56,7 @@
     "ioredis": "^5.6.1",
     "jsonwebtoken": "^9.0.2",
     "jwks-rsa": "^3.2.0",
-    "multer": "^2.0.1",
+    "multer": "^2.0.2",
     "nodemon": "^3.1.10",
     "openai": "^5.10.2",
     "passport": "^0.7.0",
@@ -69,8 +71,10 @@
     "sequelize": "^6.37.7",
     "socket.io": "^4.8.1",
     "swagger-ui-express": "^5.0.1",
+    "tesseract.js": "^6.0.1",
     "typeorm": "^0.3.25",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "uuidv4": "^6.2.13"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

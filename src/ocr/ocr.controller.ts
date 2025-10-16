@@ -1,4 +1,4 @@
-import { BadRequestException, Controller, Get, Param, ParseIntPipe, Post, Request, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Param, ParseIntPipe, Post, Request, UploadedFiles, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common';
 import { OcrService } from './ocr.service';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
@@ -15,33 +15,11 @@ import { GetOcrRecordsDto } from './dto/GetOcrRecordsDto';
 @UseFilters(HttpExceptionFilter)
 export class OcrController {
   constructor(private readonly ocrService: OcrService) {}
-  
-  @Post()
-  @UseInterceptors(
-    FilesInterceptor('files', 5, {
-      limits: {
-        fileSize: 1024 * 1024 * 5, // 5MB
-      },
-      fileFilter: (req, file, cb) => {
-        const allowedType = [
-          'image/jpeg',
-          'image/png',
-          'image/gif',
-          'application/pdf',
-        ];
-        if (allowedType.includes(file.mimetype)) {
-          cb(null, true);
-        } else {
-          cb(new BadRequestException('Invalid file type'), false);
-        }
-      },
-    }),
-    AzureStorageInterceptor,
-  )
-  @ApiBearerAuth()
-  @UseInterceptors(ResponseInterceptor)
+
+  @Post('')
   @ApiOperation({ summary: 'OCR 요청' })
   @ApiResponse({ status: 200, description: 'OCR 요청 성공' })
+  @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -56,67 +34,11 @@ export class OcrController {
       required: ['files']
     }
   })
+  @UseInterceptors(FilesInterceptor('files', 5))
   @UseGuards(JwtAuthGuard)
-  async ocr(@Request() req: ExpressRequest) {
+  async ocr(@UploadedFiles() files: Express.Multer.File[], @Request() req: ExpressRequest) {
     const userId = (req.user as any).id;
-    return this.ocrService.ocr(userId, req.files as Express.Multer.File[])
-  }
-
-  @Post('ai')
-  @UseInterceptors(
-    FilesInterceptor('files', 5, {
-      limits: {
-        fileSize: 1024 * 1024 * 5, // 5MB
-      },
-      fileFilter: (req, file, cb) => {
-        const allowedType = [
-          'image/jpeg',
-          'image/png',
-          'image/gif',
-          'application/pdf',
-        ];
-        if (allowedType.includes(file.mimetype)) {
-          cb(null, true);
-        } else {
-          cb(new BadRequestException('Invalid file type'), false);
-        }
-      },
-    }),
-    AzureStorageInterceptor,
-  )
-  @ApiBearerAuth()
-  @UseInterceptors(ResponseInterceptor)
-  @ApiOperation({ summary: 'OCR 요청' })
-  @ApiResponse({ status: 200, description: 'OCR 요청 성공' })
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        files: {
-          type: 'array',
-          items: { type: 'string', format: 'binary' },
-          description: '업로드할 이미지 파일들 (최대 5개, 각 파일 최대 5MB)',
-        },
-      },
-      required: ['files']
-    }
-  })
-  @UseGuards(JwtAuthGuard)
-  async ocrByAI(@Request() req: ExpressRequest) {
-    const userId = (req.user as any).id;
-    return this.ocrService.ocrAndTranslateByAI(userId, req.files as Express.Multer.File[])
-  }
-
-  @Get('solution')
-  @UseInterceptors(ResponseInterceptor)
-  @ApiOperation({ summary: 'Solution 요청' })
-  @ApiResponse({ status: 200, description: 'Solution 요청 성공' })
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  async solution(@Request() req: ExpressRequest) {
-    const userId = (req.user as any).id;
-    return this.ocrService.solution(userId);
+    return this.ocrService.ocr(userId, files);
   }
 
   @Get(':id')
