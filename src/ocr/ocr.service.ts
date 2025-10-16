@@ -9,60 +9,23 @@ import { UtilsService } from 'src/common/utils/utils.service';
 import { AWSS3Service } from 'src/common/aws-s3/aws-s3.service';
 import { Worker, createWorker } from 'tesseract.js';
 import { TranslateService } from 'src/translate/translate.service';
+import { BedrockService } from 'src/bedrock/bedrock.service';
+import { AskQuestionDto } from './dto/ask-question.dto';
 
 @Injectable()
 export class OcrService {
-    private client: AzureOpenAI;
     private logger = new Logger();
     private worker: Worker | null = null;
 
     constructor(
-        private readonly configService: ConfigService,
         private readonly prisma: PrismaService,
         private readonly utilsService: UtilsService,
-        private readonly awsS3: AWSS3Service,
-        private readonly translateService: TranslateService
+        private readonly translateService: TranslateService,
+        private readonly bedrockService: BedrockService,
     ) { }
 
-    async init() {
+    private async init() {
         this.worker = await createWorker('kor')
-    }
-
-    private async imageUpload(userId: number, file: Express.Multer.File) {
-        const imageName = file.originalname + this.utilsService.getUUID();
-        const ext = file.originalname.split('.').pop();
-        if (!ext) {
-            throw new BadRequestException({
-                message: ['파일 확장자를 확인할 수 없습니다.'],
-                error: 'BadRequest',
-                statusCode: 400,
-            });
-        }
-
-        const imageUrl = await this.awsS3.uploadFile(
-            `${imageName}.${ext}`, file, ext
-        )
-        if (!imageUrl) {
-            throw new BadRequestException({
-                message: ['이미지 업로드에 실패했습니다.'],
-                error: 'BadRequest',
-                statusCode: 400,
-            })
-        }
-
-        await this.prisma.ocrimages.create({
-            data: {
-                userId: userId,
-                fileName: file.originalname,
-                fileUrl: imageUrl,
-                fileSize: file.size,
-                fileType: file.mimetype,
-            }
-        })
-
-        return {
-            imageUrl: imageUrl,
-        };
     }
 
     //ocr - tesseract
@@ -74,7 +37,7 @@ export class OcrService {
                 statusCode: 400,
             });
         }
-        const uploadFile = await this.imageUpload(userId, files[0]);
+        const uploadFile = await this.utilsService.imageUpload(userId, files[0]);
         const imageUrl = uploadFile.imageUrl;
 
         if (!this.worker) await this.init();
@@ -104,12 +67,12 @@ export class OcrService {
 
         const { data } = await this.worker.recognize(imageUrl);
 
-        const originalText =  data.text.trim()
+        const originalText = data.text.trim()
         const translateText = await this.translateService.translate(originalText, "auto", user.targetLanguage);
 
         const ocrResults = originalText.split('\n').filter(line => line.trim() !== '');
         const translateResults = translateText.split('\n').filter(line => line.trim() !== '');
-        
+
         await this.prisma.translations.create({
             data: {
                 originalText: ocrResults,
@@ -130,14 +93,222 @@ export class OcrService {
         }
     }
 
-    async onModuleDestroy() {
+    private async onModuleDestroy() {
         if (this.worker) {
             await this.worker.terminate();
             this.worker = null;
         }
     }
 
+    async solution(userId: number) {
+        try {
+            const user = await this.prisma.users.findUnique({
+                where: { id: userId, isDeleted: false },
+                select: { targetLanguage: true },
+            });
 
+            if (!user) {
+                throw new UnauthorizedException({
+                    message: ['사용자를 찾을 수 없습니다.'],
+                    error: 'Unauthorized',
+                    statusCode: 401,
+                });
+            }
+
+            const requestUser = await this.prisma.translations.findFirst({
+                where: { menteeId: userId },
+                orderBy: { id: 'desc' },
+                select: { originalText: true },
+            });
+
+            if (!requestUser) {
+                throw new NotFoundException({
+                    message: ['문제를 찾을 수 없습니다.'],
+                    error: 'NotFound',
+                    statusCode: 404,
+                });
+            }
+
+            const targetLanguage = user.targetLanguage;
+            const problem: string[] = requestUser.originalText;
+
+            // 민감 단어 필터링
+            const sanitizeText = (text: string[]) =>
+                text.map(line =>
+                    line
+                        .replace(/제모/g, '모발 제거')
+                        .replace(/hair removal/g, '모발 제거')
+                        .replace(/removal/g, '제거')
+                        .replace(/정벌/g, '정복')
+                        .replace(/대결/g, '대립')
+                        .replace(/conquest/g, '정복')
+                        .replace(/혁명/g, '개혁')
+                        .replace(/독립/g, '자립')
+                        .replace(/반대/g, '거부')
+                        .replace(/revolution/g, '개혁')
+                        .replace(/independence/g, '자립')
+                        .replace(/반일/g, '대외 관계')
+                        .replace(/민족/g, '국민')
+                        .replace(/통합/g, '연합'),
+                );
+
+            const sanitizedProblem = sanitizeText(problem);
+
+            const questionPrompt = `
+                You are a helpful assistant for elementary school students who need problem explanations translated into ${targetLanguage}.
+                Please describe the problem in a way that is easy to understand.
+
+                Problem:
+                ${sanitizedProblem.join('\n')}
+
+                Respond ONLY in JSON format:
+                {
+                "solution": "detailed explanation here",
+                "keyConcept": "keyword1, keyword2, keyword3",
+                "summary": "brief summary here"
+                }
+
+                IMPORTANT for keyConcept:
+                - Extract ONLY the core concept keywords (2-5 words maximum)
+                - Use comma-separated single words or short phrases
+                - Examples: "분수, 약분", "삼각형, 넓이, 공식", "multiplication, division"
+                - DO NOT write full sentences
+                - Focus on the mathematical or subject-specific terms only
+            `;
+
+            const bedrockResponseText = await this.bedrockService.generateText(questionPrompt);
+            this.logger.debug('Bedrock 응답:', bedrockResponseText);
+
+            let gptResponse;
+            try {
+                gptResponse = JSON.parse(bedrockResponseText);
+            } catch {
+                gptResponse = {
+                    solution: bedrockResponseText,
+                    keyConcept: '',
+                    summary: '',
+                };
+            }
+
+            const translationRecord = await this.prisma.translations.findFirst({
+                where: { menteeId: userId },
+                orderBy: { id: 'desc' },
+            });
+
+            if (!translationRecord) {
+                throw new NotFoundException({
+                    message: ['번역 레코드를 찾을 수 없습니다.'],
+                    error: 'NotFound',
+                    statusCode: 404,
+                });
+            }
+
+            await this.prisma.translations.update({
+                where: { id: translationRecord.id },
+                data: {
+                    keyConcept: gptResponse.keyConcept,
+                    solution: gptResponse.solution,
+                    summary: gptResponse.summary,
+                },
+            });
+
+            return {
+                message: 'Solution 요청 성공',
+                statusCode: 200,
+                keyConcept: gptResponse.keyConcept,
+                solution: gptResponse.solution,
+                summary: gptResponse.summary,
+            };
+        } catch (error) {
+            this.logger.error('Solution 요청 실패:', error);
+            throw new BadRequestException({
+                message: ['Solution 요청 실패'],
+                error: 'BadRequest',
+                statusCode: 400,
+            });
+        }
+    }
+
+    async askQuestion(userId: number, askQuestionDto: AskQuestionDto) {
+        try {
+            const user = await this.prisma.users.findUnique({
+                where: { id: userId, isDeleted: false },
+                select: { targetLanguage: true },
+            });
+
+            if (!user) {
+                throw new UnauthorizedException({
+                    message: ['사용자를 찾을 수 없습니다.'],
+                    error: 'Unauthorized',
+                    statusCode: 401,
+                });
+            }
+
+            const targetLanguage = user.targetLanguage;
+            const { question } = askQuestionDto;
+
+            // 민감 단어 필터링
+            const sanitizeText = (text: string) =>
+                text
+                    .replace(/제모/g, '모발 제거')
+                    .replace(/hair removal/g, '모발 제거')
+                    .replace(/removal/g, '제거')
+                    .replace(/정벌/g, '정복')
+                    .replace(/대결/g, '대립')
+                    .replace(/conquest/g, '정복')
+                    .replace(/혁명/g, '개혁')
+                    .replace(/독립/g, '자립')
+                    .replace(/반대/g, '거부')
+                    .replace(/revolution/g, '개혁')
+                    .replace(/independence/g, '자립')
+                    .replace(/반일/g, '대외 관계')
+                    .replace(/민족/g, '국민')
+                    .replace(/통합/g, '연합');
+
+            const sanitizedQuestion = sanitizeText(question);
+
+            const questionPrompt = `
+                You are a kind and patient elementary school teacher having a conversation with a student in ${targetLanguage}.
+                The student has a question about something they're learning.
+
+                Student's Question:
+                "${sanitizedQuestion}"
+
+                Please respond naturally as a teacher would in a conversation:
+                - Answer the question directly and warmly
+                - Use simple, conversational language suitable for elementary students
+                - Include easy-to-understand examples if helpful
+                - Encourage the student and make them feel confident
+                - Keep it brief and focused (2-5 sentences)
+                - Respond entirely in ${targetLanguage}
+
+                Provide your answer as plain text, NOT in JSON format. Just write your natural teacher response.
+            `;
+
+            const bedrockResponseText = await this.bedrockService.generateText(questionPrompt);
+            
+            await this.prisma.aIQuestions.create({
+                data: {
+                    menteeId: userId,
+                    question: sanitizedQuestion,
+                    answer: bedrockResponseText.trim(),
+                },
+            });
+
+            return {
+                message: '질문 답변 성공',
+                statusCode: 200,
+                answer: bedrockResponseText.trim(),
+            };
+        } catch (error) {
+            this.logger.error('질문 처리 실패:', error);
+            throw new BadRequestException({
+                message: ['질문 처리 실패'],
+                error: 'BadRequest',
+                statusCode: 400,
+            });
+        }
+    }
 
     async getMyOcr(userId: number): Promise<OcrRecordDto[]> {
         const ocrRecords = await this.prisma.translations.findMany({

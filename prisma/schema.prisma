@@ -24,7 +24,7 @@ model Users {
   isBlocked        Boolean           @default(false)
 
   // 소셜로그인 관련 필드 추가
-  oauthProvider OAuthProvider? // "apple", "google", "kakao" 등
+  oauthProvider OAuthProvider?
   oauthId       String? // 소셜로그인 제공자의 고유 ID
 
   comments           Comment[]
@@ -33,6 +33,7 @@ model Users {
   reports            Report[]
   menteeTranslations Translations[]
   ocr_images         Ocrimages[]
+  menteeQuestions AIQuestions[]
 
   // 내가 userA 또는 userB인 채팅방들
   chatRoomsAsUserA ChatRoom[] @relation("ChatRoomUserA")
@@ -90,6 +91,15 @@ model Translations {
   solution       String
   summary        String
   mentee         Users    @relation(fields: [menteeId], references: [id])
+}
+
+// 질문에 대한 답변
+model AIQuestions {
+  id Int @id @default(autoincrement())
+  menteeId Int
+  question String
+  answer String
+  mentee Users @relation(fields: [menteeId], references: [id])
 }
 
 // 이미지 업로드

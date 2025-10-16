@@ -1,15 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AzureStorageService } from './azure-storage.service';
+import { BedrockService } from './bedrock.service';
 
-describe('AzureStorageService', () => {
-  let service: AzureStorageService;
+describe('BedrockService', () => {
+  let service: BedrockService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [AzureStorageService],
+      providers: [BedrockService],
     }).compile();
 
-    service = module.get<AzureStorageService>(AzureStorageService);
+    service = module.get<BedrockService>(BedrockService);
   });
 
   it('should be defined', () => {

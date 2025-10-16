@@ -8,9 +8,10 @@ import { AwsS3Module } from 'src/common/aws-s3/aws-s3.module';
 import { MulterModule } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { TranslateModule } from 'src/translate/translate.module';
+import { BedrockModule } from 'src/bedrock/bedrock.module';
 
 @Module({
-  imports: [ConfigModule, PrismaModule, UtilsModule, AwsS3Module, TranslateModule,
+  imports: [ConfigModule, PrismaModule, UtilsModule, AwsS3Module, TranslateModule, BedrockModule,
     MulterModule.register({
       storage: memoryStorage(),
       limits: {

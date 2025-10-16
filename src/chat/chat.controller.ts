@@ -11,8 +11,8 @@ import {
   DefaultValuePipe,
   ParseIntPipe,
   Body,
+  Request,
 } from '@nestjs/common';
-import { Request } from 'express';
 import { ChatService } from './chat.service';
 import {
   ApiTags,
@@ -26,6 +26,7 @@ import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Express } from 'express';
 import { ReportDto } from './dto/report-message.dto';
+import { Request as ExpressRequest, Response } from 'express';
 
 @ApiTags('Chat')
 @ApiBearerAuth()
@@ -37,9 +38,9 @@ export class ChatController {
   @Get('chatrooms')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '내 채팅방 목록 조회' })
-  async getUserChatRooms(@Req() req: Request) {
-    const user = req.user as any; // JwtStrategy.validate()가 반환한 객체
-    return this.chatService.getUserChatRoomsWithUnread(Number(user.id));
+  async getUserChatRooms(@Request() req: ExpressRequest) {
+    const user = (req.user as any).id; // JwtStrategy.validate()가 반환한 객체
+    return this.chatService.getUserChatRoomsWithUnread(Number(user));
   }
 
   // 채팅방 입장 -> 메세지 상세 내용 (페이지네이션)
@@ -71,19 +72,20 @@ export class ChatController {
       required: ['file'],
     },
   })
-  async uploadAttachment(@UploadedFile() file: Express.Multer.File) {
-    return this.chatService.uploadAttachment(file);
+  async uploadAttachment(@Request() req: ExpressRequest, @UploadedFile() file: Express.Multer.File) {
+    const userId = (req.user as any).id;
+    return this.chatService.uploadAttachment(userId, file);
   }
 
   // 채팅방 신고
   @Post('messages/:messageId/report')
   @UseGuards(JwtAuthGuard)
   async reportMessage(
-    @Req() req: Request,
+    @Request() req: ExpressRequest,
     @Param('messageId', ParseIntPipe) messageId: number,
     @Body() body: ReportDto,
 ) {
-  const user = req.user as any;
+  const user = (req.user as any).id;
   return this.chatService.reportMessage(Number(user.id), messageId, body.reason);
 }
 
@@ -93,11 +95,11 @@ export class ChatController {
   @ApiParam({ name: 'roomId', type: Number })
   @ApiOperation({ summary: '채팅방 나가기(숨김 처리)' })
   async leaveRoom(
-    @Req() req: Request,
+    @Request() req: ExpressRequest,
     @Param('roomId', ParseIntPipe) roomId: number,
   ) {
-    const user = req.user as any;
-    return this.chatService.leaveRoom(Number(user.id), roomId);
+    const user = (req.user as any).id;
+    return this.chatService.leaveRoom(Number(user), roomId);
   }
 
   // 채팅방 숨김 해제
@@ -106,10 +108,10 @@ export class ChatController {
   @ApiParam({ name: 'roomId', type: Number })
   @ApiOperation({ summary: '채팅방 숨김 해제' })
   async unhideRoom(
-    @Req() req: Request,
+    @Request() req: ExpressRequest,
     @Param('roomId', ParseIntPipe) roomId: number,
   ) {
-    const user = req.user as any;
-    return this.chatService.unhideRoom(Number(user.id), roomId);
+    const user = (req.user as any).id;
+    return this.chatService.unhideRoom(Number(user), roomId);
   }
 }
