@@ -30,7 +30,8 @@ import { ReportDto } from './dto/report-question.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { Request as ExpressRequest } from 'express';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { AzureStorageService } from 'src/common/azure-storage/azure-storage.service';
+import { AWSS3Service } from 'src/common/aws-s3/aws-s3.service';
+import { UtilsService } from 'src/common/utils/utils.service';
 
 
 interface AuthenticatedRequest extends ExpressRequest {
@@ -48,8 +49,8 @@ interface AuthenticatedRequest extends ExpressRequest {
 export class QuestionController {
   constructor(
     private readonly questionService: QuestionService,
-    private readonly azureStorageService: AzureStorageService,
-  ) {}
+    private readonly utilsService: UtilsService
+  ) { }
 
   // 질문 생성
   @Post()
@@ -92,12 +93,15 @@ export class QuestionController {
     const userId = req.user?.id;
     if (!userId) throw new UnauthorizedException('로그인이 필요합니다.');
 
-    const urls = await Promise.all(
-      (files ?? []).map((f) => this.azureStorageService.upload(f.buffer, f.originalname)),
+    const imageResults = await Promise.all(
+      (files ?? []).map((f) => this.utilsService.imageUpload(userId, f)),
     );
 
+    const urls = imageResults.map((r) => r.imageUrl);
+
     return this.questionService.createQuestion(createDto, userId, urls);
- }
+
+  }
 
   // 질문 리스트 조회
   @Get()
@@ -109,49 +113,7 @@ export class QuestionController {
     return await this.questionService.getQuestionList(category);
   }
 
-  // 내가 쓴 게시물 조회
-  // @Get('my')
-  // @UseGuards(JwtAuthGuard)
-  // @ApiOperation({ summary: '내가 쓴 질문 목록 조회', description: '로그인한 사용자가 작성한 질문들을 조회합니다.' })
-  // @ApiResponse({
-  //   status: 200,
-  //   schema: {
-  //     example: {
-  //       user: {
-  //         id: 1,
-  //         username: 'user123',
-  //         email: 'user@example.com'
-  //       },
-  //       questions: [
-  //         {
-  //           id: 1,
-  //           title: '질문 제목',
-  //           content: '질문 내용',
-  //           category: 'study',
-  //           createdAt: '2024-08-04T00:00:00Z',
-  //           isAnswered: true,
-  //           answerCount: 3
-  //         }
-  //       ]
-  //     }
-  //   }
-  // })
-  // async getMyQuestions(@Req() req: AuthenticatedRequest) {
-  //   const user = req.user;
-  //   if (!user?.id) throw new UnauthorizedException('로그인이 필요합니다.');
-
-  //   const questions = await this.questionService.getMyQuestions(user.id);
-
-  //   return {
-  //     user: {
-  //       id: user.id,
-  //       username: user.username,
-  //       email: user.email,
-  //     },
-  //     questions,
-  //   };
-  // }
-  
+  // 내가 쓴 질문 목록 조회
   @Get('my')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '내가 쓴 질문 목록 조회', description: '로그인한 사용자가 작성한 질문들을 조회합니다.' })
@@ -207,6 +169,6 @@ export class QuestionController {
     if (!userId) throw new UnauthorizedException('로그인이 필요합니다.');
     return await this.questionService.reportQuestion(questionId, userId, reportDto);
   }
-  
+
 
 }

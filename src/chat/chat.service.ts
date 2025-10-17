@@ -1,32 +1,30 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateMessageDto } from './dto/create-message.dto';
-import { AzureStorageService } from 'src/common/azure-storage/azure-storage.service';
 import { Express } from 'express';
 import { UserService } from 'src/user/user.service';
+import { AWSS3Service } from 'src/common/aws-s3/aws-s3.service';
+import { UtilsService } from 'src/common/utils/utils.service';
 
 @Injectable()
 export class ChatService {
   constructor(
     private prisma: PrismaService,
-    private azureStorageService: AzureStorageService,
     private userService: UserService,
+    private utilsService: UtilsService
   ) {}
 
 
   // REST로 파일 업로드 -> fileUrl, fileType 수신 -> 소켓 send_message에서 fileUrl만 포함해 메시지 전송
-  async uploadAttachment(file: Express.Multer.File) {
+  async uploadAttachment(userId: number, file: Express.Multer.File) {
     if (!file) {
       throw new Error('파일이 전달되지 않았습니다.');
     }
 
-    const fileUrl = await this.azureStorageService.upload(
-      file.buffer,
-      file.originalname,
-    );
+    const uploadFile = await this.utilsService.imageUpload(userId, file);
 
     return {
-      fileUrl,
+      fileUrl: uploadFile.imageUrl,
       fileType: file.mimetype,
       fileName: file.originalname,
       size: file.size,
@@ -42,10 +40,8 @@ export class ChatService {
 
     // 파일이 직접 첨부되어 온 경우(테스트/임시용) Azure Storage 업로드
     if (file) {
-      fileUrl = await this.azureStorageService.upload(
-        file.buffer,
-        file.originalname,
-      );
+      const uploadFile = await this.utilsService.imageUpload(data.senderId, file);
+      fileUrl = uploadFile.imageUrl;
       fileType = file.mimetype;
     }
 

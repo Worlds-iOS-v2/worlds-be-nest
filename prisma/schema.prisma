@@ -12,16 +12,20 @@ model Users {
   id               Int               @id @default(autoincrement())
   userName         String
   userEmail        String            @unique
-  birthday         String
-  passwordHash     String
+  birthday         String?
+  passwordHash     String?
   isMentor         Boolean           @default(false)
   reportCount      Int               @default(0)
   refreshToken     String
   targetLanguage   String
   profileImage     ProfileImage?
-  isDeleted        Boolean?
+  isDeleted        Boolean           @default(false)
   WithdrawalReason WithdrawalReason?
   isBlocked        Boolean           @default(false)
+
+  // 소셜로그인 관련 필드 추가
+  oauthProvider OAuthProvider?
+  oauthId       String? // 소셜로그인 제공자의 고유 ID
 
   comments           Comment[]
   commentLikes       CommentLike[]
@@ -29,6 +33,7 @@ model Users {
   reports            Report[]
   menteeTranslations Translations[]
   ocr_images         Ocrimages[]
+  menteeQuestions AIQuestions[]
 
   // 내가 userA 또는 userB인 채팅방들
   chatRoomsAsUserA ChatRoom[] @relation("ChatRoomUserA")
@@ -45,6 +50,18 @@ model Users {
 
   // 이메일 인증용 데이터
   emailVerifications EmailVerifications[]
+
+  // 복합 인덱스 추가 (성능 최적화)
+  @@unique([oauthProvider, oauthId], name: "oauthProvider_oauthId")
+  @@index([userEmail])
+  @@index([oauthProvider, oauthId])
+}
+
+// 소셜로그인
+enum OAuthProvider {
+  apple
+  kakao
+  google
 }
 
 // 탈퇴 사유
@@ -74,6 +91,15 @@ model Translations {
   solution       String
   summary        String
   mentee         Users    @relation(fields: [menteeId], references: [id])
+}
+
+// 질문에 대한 답변
+model AIQuestions {
+  id Int @id @default(autoincrement())
+  menteeId Int
+  question String
+  answer String
+  mentee Users @relation(fields: [menteeId], references: [id])
 }
 
 // 이미지 업로드

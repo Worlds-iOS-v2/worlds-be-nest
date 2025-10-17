@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 
 import * as bcrypt from 'bcrypt';
 import { SignInDto } from 'src/auth/dto/SignInDto';
+import { OAuthProvider } from '@prisma/client';
 
 @Injectable()
 export class UserService {
@@ -13,7 +14,19 @@ export class UserService {
     // 리프레시 토큰 업데이트 (DB)
     async updateRefreshToken(userId: number, token: string | null) {
         console.log('updateRefreshToken - userId:', userId, 'tokenId:', token);
-        
+
+        // 사용자 존재 확인
+        const user = await this.prisma.users.findUnique({
+            where: { id: userId }
+        });
+
+        if (!user) {
+            console.log('사용자를 찾을 수 없음 - userId:', userId);
+            throw new Error(`사용자 ID ${userId}를 찾을 수 없습니다`);
+        }
+
+        console.log('사용자 존재 확인됨:', user.id);
+
         const result = await this.prisma.users.update({
             where: {
                 id: userId,
@@ -24,7 +37,7 @@ export class UserService {
                 refreshToken: token || '',
             },
         });
-        
+
         console.log('updateRefreshToken 결과:', result.refreshToken);
         return result;
     }
@@ -42,6 +55,8 @@ export class UserService {
                 userEmail: true,
                 refreshToken: true,
                 userName: true,
+                profileImage: true,
+                isBlocked: true,
             },
         });
     }
@@ -189,5 +204,32 @@ export class UserService {
                 })
             }
         }
+    }
+
+    // 애플로그인용
+    async findByOAuth(provider: OAuthProvider, oauthId: string) {
+        return await this.prisma.users.findUnique({
+            where: {
+                oauthProvider_oauthId: {
+                    oauthProvider: provider,
+                    oauthId: oauthId
+                }
+            },
+            select: {
+                id: true,
+                userName: true,
+                userEmail: true,
+                birthday: true,
+                oauthProvider: true,
+                oauthId: true,
+                isMentor: true,
+                reportCount: true,
+                targetLanguage: true,
+                isDeleted: true,
+                isBlocked: true,
+                profileImage: true,
+                refreshToken: true
+            }
+        });
     }
 }
