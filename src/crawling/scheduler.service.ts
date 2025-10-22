@@ -10,7 +10,7 @@ export class SchedulerService {
     private readonly prismaService: PrismaService,
   ) { }
 
-  @Cron('30 09 * * *')
+  @Cron('30 08 * * *')
   async scheduleCrawlGov() {
     const today = new Date();
     console.log('scheduleCrawling', today);
@@ -42,7 +42,7 @@ export class SchedulerService {
     console.log('스케줄러 실행 완료');
   }
 
-  @Cron('30 09 * * *')
+  @Cron('30 08 * * *')
   async scheduleCrawlEvent() {
     const today = new Date();
     console.log('scheduleCrawling', today);

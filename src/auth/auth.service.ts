@@ -196,17 +196,15 @@ export class AuthService {
         this.logger.log(`애플 로그인 시작 - OAuth ID: ${applesigninform.oauthId}, Email: ${applesigninform.email || 'N/A'}`);
 
         try {
-            // ✅ 1️⃣ Apple 토큰 검증
+            // Apple 토큰 검증
             await this.verifyAppleIdToken(applesigninform.idToken);
 
-            // ✅ 2️⃣ DB에서 유저 검색
             let user = await this.userService.findByOAuth(OAuthProvider.apple, applesigninform.oauthId);
 
-            // ✅ 3️⃣ 신규 유저면 회원가입
+            // 신규 유저일 경우
             if (!user) {
                 this.logger.log(`신규 애플 사용자 → 회원가입 진행 - OAuth ID: ${applesigninform.oauthId}`);
 
-                // 먼저 DB에 유저 생성
                 user = await this.prisma.users.create({
                     data: {
                         oauthProvider: OAuthProvider.apple,
@@ -228,7 +226,6 @@ export class AuthService {
                     },
                 });
 
-                // 생성된 유저의 id로 토큰 발급
                 const tokens = await this.generateTokens({
                     id: user.id,
                     userEmail: user.userEmail,
@@ -238,7 +235,6 @@ export class AuthService {
                     refreshToken: '',
                 });
 
-                // refreshToken 저장
                 await this.prisma.users.update({
                     where: { id: user.id },
                     data: { refreshToken: tokens.refreshToken },
@@ -256,7 +252,7 @@ export class AuthService {
                 };
             }
 
-            // ✅ 4️⃣ 기존 유저면 로그인 처리
+            // 기존 유저일 경우
             this.logger.log(`기존 애플 사용자 로그인 - User ID: ${user.id}, Username: ${user.userName}`);
 
             const authUser = await this.authenticateAppleUser(applesigninform);
@@ -288,8 +284,6 @@ export class AuthService {
             throw error;
         }
     }
-
-
 
     // 카카오 정보 회원 가입
     async signUpWithKakao(kakaosignupfrom: KakaoSignUpDto) {
