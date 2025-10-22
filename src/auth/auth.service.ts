@@ -145,7 +145,7 @@ export class AuthService {
         console.log('=== generateTokens 시작 ===');
         console.log('user 객체:', user);
         console.log('user.id:', user.id);
-        
+
         const accessPayload = {
             sub: user.id,
             username: user.userName,
@@ -196,66 +196,76 @@ export class AuthService {
         this.logger.log(`애플 로그인 시작 - OAuth ID: ${applesigninform.oauthId}, Email: ${applesigninform.email || 'N/A'}`);
 
         try {
-            // 가입된 회원인지 아닌지
+            // ✅ 1️⃣ Apple 토큰 검증
+            await this.verifyAppleIdToken(applesigninform.idToken);
+
+            // ✅ 2️⃣ DB에서 유저 검색
             let user = await this.userService.findByOAuth(OAuthProvider.apple, applesigninform.oauthId);
 
-            // 애플 로그인 유저 검증
-            const authUser = await this.authenticateAppleUser(applesigninform);
-
-            // 토큰 발급
-            const tokens = await this.generateTokens(authUser);
-
-            user = await this.prisma.users.upsert({
-                where: { oauthProvider_oauthId: { oauthProvider: OAuthProvider.apple, oauthId: applesigninform.oauthId } },
-                update: {
-                    userEmail: applesigninform.email ? applesigninform.email : user?.userEmail,
-                    userName: applesigninform.givenName ?
-                        `${applesigninform.givenName} ${applesigninform.familyName || ''}`.trim() :
-                        user?.userName || '애플 사용자',
-                    refreshToken: tokens.refreshToken,
-                    isDeleted: false,
-                },
-                create: {
-                        oauthProvider: OAuthProvider.apple,
-                        oauthId: applesigninform.oauthId,
-                        userEmail: applesigninform.email ? applesigninform.email : `${applesigninform.oauthId}@apple.private`,
-                        userName: applesigninform.givenName ?
-                            `${applesigninform.givenName} ${applesigninform.familyName || ''}`.trim() :
-                            '애플 사용자',
-                        targetLanguage: applesigninform.targetLanguage || 'en',
-                        birthday: '',
-                        passwordHash: '',
-                        isMentor: false,
-                        reportCount: 0,
-                        refreshToken: tokens.refreshToken,
-                        isDeleted: false,
-                        isBlocked: false
-                }
-            })
-
+            // ✅ 3️⃣ 신규 유저면 회원가입
             if (!user) {
+                this.logger.log(`신규 애플 사용자 → 회원가입 진행 - OAuth ID: ${applesigninform.oauthId}`);
+
+                // 먼저 DB에 유저 생성
                 user = await this.prisma.users.create({
                     data: {
                         oauthProvider: OAuthProvider.apple,
                         oauthId: applesigninform.oauthId,
-                        userEmail: applesigninform.email ? applesigninform.email : `${applesigninform.oauthId}@apple.private`,
-                        userName: applesigninform.givenName ?
-                            `${applesigninform.givenName} ${applesigninform.familyName || ''}`.trim() :
-                            '애플 사용자',
+                        userEmail: applesigninform.email
+                            ? applesigninform.email
+                            : `${applesigninform.oauthId}@apple.private`,
+                        userName: applesigninform.givenName
+                            ? `${applesigninform.givenName} ${applesigninform.familyName || ''}`.trim()
+                            : '애플 사용자',
                         targetLanguage: applesigninform.targetLanguage || 'en',
                         birthday: '',
                         passwordHash: '',
                         isMentor: false,
                         reportCount: 0,
-                        refreshToken: tokens.refreshToken,
+                        refreshToken: '',
                         isDeleted: false,
-                        isBlocked: false
-                    }
+                        isBlocked: false,
+                    },
                 });
-                this.logger.log(`신규 사용자 생성 - User ID: ${user.id}, Email: ${user.userEmail}`);
-            } else {
-                this.logger.log(`기존 사용자 있음`);
+
+                // 생성된 유저의 id로 토큰 발급
+                const tokens = await this.generateTokens({
+                    id: user.id,
+                    userEmail: user.userEmail,
+                    userName: user.userName,
+                    profileImage: user.profileImage || '',
+                    isBlocked: user.isBlocked,
+                    refreshToken: '',
+                });
+
+                // refreshToken 저장
+                await this.prisma.users.update({
+                    where: { id: user.id },
+                    data: { refreshToken: tokens.refreshToken },
+                });
+
+                this.logger.log(`애플 회원가입 완료 - User ID: ${user.id}, Username: ${user.userName}`);
+
+                return {
+                    message: '애플 회원가입 성공',
+                    statusCode: 201,
+                    username: user.userName,
+                    profileImage: user.profileImage,
+                    access_token: tokens.accessToken,
+                    refresh_token: tokens.refreshToken,
+                };
             }
+
+            // ✅ 4️⃣ 기존 유저면 로그인 처리
+            this.logger.log(`기존 애플 사용자 로그인 - User ID: ${user.id}, Username: ${user.userName}`);
+
+            const authUser = await this.authenticateAppleUser(applesigninform);
+            const tokens = await this.generateTokens(authUser);
+
+            await this.prisma.users.update({
+                where: { id: user.id },
+                data: { refreshToken: tokens.refreshToken },
+            });
 
             this.logger.log(`애플 로그인 완료 - User ID: ${user.id}, Username: ${user.userName}`);
 
@@ -265,19 +275,21 @@ export class AuthService {
                 username: user.userName,
                 profileImage: user.profileImage,
                 access_token: tokens.accessToken,
-                refresh_token: user.refreshToken
-            }
+                refresh_token: tokens.refreshToken,
+            };
         } catch (error) {
             this.logger.error(`애플 로그인 실패 - OAuth ID: ${applesigninform.oauthId}`, {
                 errorName: error?.name,
                 errorMessage: error?.message,
                 errorStack: error?.stack,
                 errorCode: error?.code,
-                statusCode: error?.statusCode
+                statusCode: error?.statusCode,
             });
             throw error;
         }
     }
+
+
 
     // 카카오 정보 회원 가입
     async signUpWithKakao(kakaosignupfrom: KakaoSignUpDto) {

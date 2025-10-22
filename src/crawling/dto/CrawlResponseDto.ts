@@ -33,23 +33,6 @@ export class CrawlResponseDto {
     items: {
       type: 'object',
       properties: {
-        borough: { type: 'string', example: '성동구' },
-        title: { type: 'string', example: '한국어 교육 프로그램' },
-        image: { type: 'string', example: 'https://example.com/image.jpg' },
-        applicationPeriod: { type: 'string', example: '2025-01-01 ~ 2025-01-31' },
-        programPeriod: { type: 'string', example: '2025-02-01 ~ 2025-03-31' },
-        location: { type: 'string', example: '성동구 가족센터' },
-        url: { type: 'string', example: 'https://example.com/program' }
-      }
-    }
-  })
-  koreanData: any[];
-
-  @ApiProperty({
-    type: 'array',
-    items: {
-      type: 'object',
-      properties: {
         borough: { type: 'string', example: '서초구' },
         title: { type: 'string', example: '다문화 가족 지원 프로그램' },
         image: { type: 'string', example: 'https://example.com/image.jpg' },

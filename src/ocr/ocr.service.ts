@@ -67,11 +67,29 @@ export class OcrService {
 
         const { data } = await this.worker.recognize(imageUrl);
 
-        const originalText = data.text.trim()
-        const translateText = await this.translateService.translate(originalText, "auto", user.targetLanguage);
+        const originalText = data.text.trim();
+        const ocrResults = originalText
+            .split('\n')
+            .map(line => line.trim())
+            .filter(line => line !== '');
 
-        const ocrResults = originalText.split('\n').filter(line => line.trim() !== '');
-        const translateResults = translateText.split('\n').filter(line => line.trim() !== '');
+        const translateResults: string[] = [];
+        for (const line of ocrResults) {
+            try {
+                const translated = await this.translateService.translate(
+                    line,
+                    'auto',
+                    user.targetLanguage
+                );
+                translateResults.push(translated.trim());
+            } catch (err) {
+                console.error(`❌ 번역 실패 (${line}):`, err);
+                translateResults.push(''); // 실패한 경우 빈 문자열
+            }
+        }
+
+        console.log('OCR 원문:', ocrResults);
+        console.log('번역 결과:', translateResults);
 
         await this.prisma.translations.create({
             data: {
@@ -286,7 +304,7 @@ export class OcrService {
             `;
 
             const bedrockResponseText = await this.bedrockService.generateText(questionPrompt);
-            
+
             await this.prisma.aIQuestions.create({
                 data: {
                     menteeId: userId,

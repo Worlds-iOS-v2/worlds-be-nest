@@ -38,6 +38,11 @@ export class CrawlingService {
         try {
             const page = await browser.newPage();
 
+            await page.setExtraHTTPHeaders({
+                'Referer': 'https://mcfamily.or.kr/programs/korean',
+                ...this.headers
+            })
+
             await page.goto(URL, { waitUntil: 'networkidle0', timeout: 20000 });
 
             page.on('console', (msg) => console.log('Browser Console:', msg.text()));
@@ -66,23 +71,42 @@ export class CrawlingService {
                 const container = await page.waitForSelector(
                     '.container.pb-\\[80px\\]',
                     {
-                        timeout: 1000,
+                        timeout: 10000,
                     },
                 );
 
                 if (container) {
-                    await page.waitForFunction(() => {
-                        const title = document.querySelector('.flex .mh5');
-                        const image = document.querySelector('.ck-content img');
-                        const bodyList = document.querySelectorAll('ul.body3 li .break-all');
-                        return image && title && bodyList.length > 0;
-                    }, { timeout: 10000 }).catch(() => {
-                        throw new InternalServerErrorException({
-                            message: ['컨텐츠 로딩에 실패했습니다. 네트워크를 확인해주세요.'],
-                            error: 'CrawlingError: content loading failed',
-                            statusCode: 500,
-                        })
-                    });
+                    // await page.waitForFunction(() => {
+                    //     const title = document.querySelector('.flex .mh5');
+                    //     const image = document.querySelector('.ck-content img');
+                    //     const bodyList = document.querySelectorAll('ul.body3 li .break-all');
+                    //     return image && title && bodyList.length > 0;
+                    // }, { timeout: 10000 }).catch(() => {
+                    //     throw new InternalServerErrorException({
+                    //         message: ['컨텐츠 로딩에 실패했습니다. 네트워크를 확인해주세요.'],
+                    //         error: 'CrawlingError: content loading failed',
+                    //         statusCode: 500,
+                    //     })
+                    // });
+
+                    try {
+                        await page.waitForSelector('.flex .mh5', { timeout: 10000 });
+                    } catch {
+                        console.error('❌ title selector not found');
+                    }
+
+                    try {
+                        await page.waitForSelector('.ck-content img', { timeout: 10000 });
+                    } catch {
+                        console.warn('⚠️ image selector not found (skipping image)');
+                    }
+
+                    try {
+                        await page.waitForSelector('ul.body3 li .break-all, div.body3 li .break-all', { timeout: 10000 });
+                    } catch {
+                        console.error('❌ bodyList selector not found');
+                    }
+
 
                     const titleText = await page.evaluate(() => {
                         const titleHtml = document.querySelector('.flex .mh5');
@@ -274,7 +298,7 @@ export class CrawlingService {
         return govData
     }
 
-     // 행사? 아무튼 홍보실에 있는 거...
+    // 행사? 아무튼 홍보실에 있는 거...
     // 똑같이 20개씩 불러옴
     async crawlerEvent(): Promise<any> {
         console.log('크롤링 시작')
@@ -353,17 +377,17 @@ export class CrawlingService {
                         },
                         body: `area=${area}&area_detail=${area_detail}&_csrf=${csrfToken}`,
                     })
-                    
+
                     if (!response.ok) {
                         const errorText = await response.text()
                         throw new Error(`HTTP ${response.status}: ${errorText}`)
                     }
-                    
+
                     const data = await response.json()
                     if (data.error) {
                         throw new Error(data.error)
                     }
-                    
+
                     return data.centerUrl
                 }, area, area_detail, csrfToken);
 
@@ -388,7 +412,7 @@ export class CrawlingService {
             }
 
             for (const url of detailUrls) {
-                await page.goto(url, { waitUntil: 'domcontentloaded'})
+                await page.goto(url, { waitUntil: 'domcontentloaded' })
 
                 const container = await page.waitForSelector('.view_style_1', { timeout: 10000 }).catch(() => {
                     throw new InternalServerErrorException({
@@ -476,12 +500,12 @@ export class CrawlingService {
                 take: 20,
             })
 
-            const koreanData = await this.prismaService.koPro.findMany({
-                orderBy: {
-                    id: 'desc',
-                },
-                take: 16,
-            })
+            // const koreanData = await this.prismaService.koPro.findMany({
+            //     orderBy: {
+            //         id: 'desc',
+            //     },
+            //     take: 16,
+            // })
 
             const eventData = await this.prismaService.eventPro.findMany({
                 orderBy: {
@@ -490,15 +514,15 @@ export class CrawlingService {
                 take: 20,
             })
 
-            // // 일단 데이터베이스에 저장된 값이 없어서 직접 요청하는 것으로 대체
+            // 일단 데이터베이스에 저장된 값이 없어서 직접 요청하는 것으로 대체
             // const governmentData = await this.crawlerGovernmentProgram();
             // const koreanData = await this.crawlerKoreanProgram();
+            // const eventData = await this.crawlerEvent();
 
             return {
                 message: '크롤링 데이터 조회 성공',
                 statusCode: 200,
                 governmentData,
-                koreanData,
                 eventData,
             }
         } catch (error) {

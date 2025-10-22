@@ -13,7 +13,6 @@ export class PrismaService
       console.log('Prisma 연결 완료');
     } catch (err) {
       console.error('Prisma 초기화 실패:', err);
-      // process.exit(1); // 혹은 부팅은 유지하고자 하면 이 줄 제거
     }
   }
 
